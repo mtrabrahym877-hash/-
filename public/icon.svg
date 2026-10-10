@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B1528" />
+      <stop offset="100%" stop-color="#080F1A" />
+    </linearGradient>
+    <linearGradient id="gold" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE57F" />
+      <stop offset="50%" stop-color="#FFD700" />
+      <stop offset="100%" stop-color="#CA8A04" />
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="url(#bg)" stroke="#FFD700" stroke-width="10" stroke-opacity="0.35" />
+  <circle cx="256" cy="256" r="190" fill="none" stroke="#00D1FF" stroke-width="4" stroke-opacity="0.25" />
+  <!-- Golden Crown -->
+  <path d="M126 320 L106 185 L186 235 L256 145 L326 235 L406 185 L386 320 Z" fill="url(#gold)" />
+  <rect x="126" y="336" width="260" height="28" rx="14" fill="url(#gold)" />
+  <circle cx="106" cy="165" r="16" fill="#FFD700" />
+  <circle cx="256" cy="122" r="20" fill="#FFE57F" />
+  <circle cx="406" cy="165" r="16" fill="#FFD700" />
+</svg>

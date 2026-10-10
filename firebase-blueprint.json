@@ -1,0 +1,322 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Public profile, coin balance, and VIP status for a Majlisna member.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "bio": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "coins": {
+          "type": "number"
+        },
+        "totalCoinsSpent": {
+          "type": "number"
+        },
+        "totalGiftsReceived": {
+          "type": "number"
+        },
+        "vipTier": {
+          "type": "string",
+          "enum": ["member", "gold", "royal", "emperor"]
+        },
+        "activeBadge": {
+          "type": "string",
+          "maxLength": 50
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "displayName",
+        "photoURL",
+        "bio",
+        "coins",
+        "totalCoinsSpent",
+        "totalGiftsReceived",
+        "vipTier",
+        "activeBadge",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "VoiceRoom": {
+      "title": "VoiceRoom",
+      "description": "An interactive Arabic voice majlis room with topic and host metadata.",
+      "type": "object",
+      "properties": {
+        "roomId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 80
+        },
+        "topic": {
+          "type": "string",
+          "minLength": 2,
+          "maxLength": 160
+        },
+        "category": {
+          "type": "string",
+          "enum": ["عام", "شعر وأدب", "سوالف المساء", "ألعاب وتحديات", "قهوة وعلوم"]
+        },
+        "hostId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "hostName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "status": {
+          "type": "string",
+          "enum": ["active", "closed"]
+        },
+        "totalCoinsSupport": {
+          "type": "number"
+        },
+        "speakerCount": {
+          "type": "number"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomId",
+        "title",
+        "topic",
+        "category",
+        "hostId",
+        "hostName",
+        "status",
+        "totalCoinsSupport",
+        "speakerCount",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "RoomSeat": {
+      "title": "RoomSeat",
+      "description": "A microphone seat in a voice room occupied by a user.",
+      "type": "object",
+      "properties": {
+        "seatIndex": {
+          "type": "number"
+        },
+        "roomId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "displayName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "photoURL": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "vipTier": {
+          "type": "string",
+          "enum": ["member", "gold", "royal", "emperor"]
+        },
+        "isMuted": {
+          "type": "boolean"
+        },
+        "isSpeaking": {
+          "type": "boolean"
+        },
+        "joinedAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "seatIndex",
+        "roomId",
+        "uid",
+        "displayName",
+        "photoURL",
+        "vipTier",
+        "isMuted",
+        "isSpeaking",
+        "joinedAt",
+        "updatedAt"
+      ]
+    },
+    "RoomMessage": {
+      "title": "RoomMessage",
+      "description": "A live chat message or gift broadcast inside a voice room.",
+      "type": "object",
+      "properties": {
+        "roomId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderId": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "senderName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "senderPhoto": {
+          "type": "string",
+          "maxLength": 500
+        },
+        "senderVipTier": {
+          "type": "string",
+          "enum": ["member", "gold", "royal", "emperor"]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "type": {
+          "type": "string",
+          "enum": ["chat", "gift", "system"]
+        },
+        "giftName": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "giftCoins": {
+          "type": "number"
+        },
+        "recipientName": {
+          "type": "string",
+          "maxLength": 60
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "roomId",
+        "senderId",
+        "senderName",
+        "senderPhoto",
+        "senderVipTier",
+        "text",
+        "type",
+        "giftName",
+        "giftCoins",
+        "recipientName",
+        "createdAt"
+      ]
+    },
+    "CoinTransaction": {
+      "title": "CoinTransaction",
+      "description": "Ledger entry for coin bundle purchases, gifts sent, or VIP upgrades.",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "type": {
+          "type": "string",
+          "enum": ["topup", "gift_sent", "vip_upgrade", "daily_reward"]
+        },
+        "amount": {
+          "type": "number"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "referenceId": {
+          "type": "string",
+          "maxLength": 128
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "uid",
+        "type",
+        "amount",
+        "title",
+        "referenceId",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Public member profiles and coin balances."
+    },
+    "/rooms/{roomId}": {
+      "schema": { "$ref": "#/entities/VoiceRoom" },
+      "description": "Voice rooms (Majalis) directory."
+    },
+    "/rooms/{roomId}/seats/{seatId}": {
+      "schema": { "$ref": "#/entities/RoomSeat" },
+      "description": "Occupied microphone seats inside a room."
+    },
+    "/rooms/{roomId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/RoomMessage" },
+      "description": "Real-time chat and gift messages inside a room."
+    },
+    "/transactions/{txId}": {
+      "schema": { "$ref": "#/entities/CoinTransaction" },
+      "description": "Coin transactions and purchase history."
+    }
+  }
+}

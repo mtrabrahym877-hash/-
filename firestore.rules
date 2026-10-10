@@ -1,0 +1,296 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 1. Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Validation Blueprint: UserProfile
+    function isValidUserProfile(data) {
+      return data.keys().hasAll([
+        'uid', 'displayName', 'photoURL', 'bio', 'coins',
+        'totalCoinsSpent', 'totalGiftsReceived', 'vipTier',
+        'activeBadge', 'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'displayName', 'photoURL', 'bio', 'coins',
+        'totalCoinsSpent', 'totalGiftsReceived', 'vipTier',
+        'activeBadge', 'createdAt', 'updatedAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+      data.photoURL is string && data.photoURL.size() <= 500 &&
+      data.bio is string && data.bio.size() <= 200 &&
+      data.coins is number && data.coins >= 0 && data.coins <= 100000000 &&
+      data.totalCoinsSpent is number && data.totalCoinsSpent >= 0 && data.totalCoinsSpent <= 100000000 &&
+      data.totalGiftsReceived is number && data.totalGiftsReceived >= 0 && data.totalGiftsReceived <= 100000000 &&
+      data.vipTier is string && data.vipTier in ['member', 'gold', 'royal', 'emperor'] &&
+      data.activeBadge is string && data.activeBadge.size() <= 50 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: VoiceRoom
+    function isValidVoiceRoom(data) {
+      return data.keys().hasAll([
+        'roomId', 'title', 'topic', 'category', 'hostId',
+        'hostName', 'status', 'totalCoinsSupport', 'speakerCount',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'roomId', 'title', 'topic', 'category', 'hostId',
+        'hostName', 'status', 'totalCoinsSupport', 'speakerCount',
+        'createdAt', 'updatedAt'
+      ]) &&
+      data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 && data.roomId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.title is string && data.title.size() >= 2 && data.title.size() <= 80 &&
+      data.topic is string && data.topic.size() >= 2 && data.topic.size() <= 160 &&
+      data.category is string && data.category in ['عام', 'شعر وأدب', 'سوالف المساء', 'ألعاب وتحديات', 'قهوة وعلوم'] &&
+      data.hostId is string && data.hostId.size() >= 1 && data.hostId.size() <= 128 && data.hostId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.hostName is string && data.hostName.size() >= 1 && data.hostName.size() <= 60 &&
+      data.status is string && data.status in ['active', 'closed'] &&
+      data.totalCoinsSupport is number && data.totalCoinsSupport >= 0 && data.totalCoinsSupport <= 100000000 &&
+      data.speakerCount is number && data.speakerCount >= 0 && data.speakerCount <= 8 &&
+      data.createdAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: RoomSeat
+    function isValidRoomSeat(data) {
+      return data.keys().hasAll([
+        'seatIndex', 'roomId', 'uid', 'displayName', 'photoURL',
+        'vipTier', 'isMuted', 'isSpeaking', 'joinedAt', 'updatedAt'
+      ]) &&
+      data.keys().hasOnly([
+        'seatIndex', 'roomId', 'uid', 'displayName', 'photoURL',
+        'vipTier', 'isMuted', 'isSpeaking', 'joinedAt', 'updatedAt'
+      ]) &&
+      data.seatIndex is number && data.seatIndex >= 0 && data.seatIndex <= 7 &&
+      data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 && data.roomId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 60 &&
+      data.photoURL is string && data.photoURL.size() <= 500 &&
+      data.vipTier is string && data.vipTier in ['member', 'gold', 'royal', 'emperor'] &&
+      data.isMuted is bool &&
+      data.isSpeaking is bool &&
+      data.joinedAt is timestamp &&
+      data.updatedAt is timestamp;
+    }
+
+    // Validation Blueprint: RoomMessage
+    function isValidRoomMessage(data) {
+      return data.keys().hasAll([
+        'roomId', 'senderId', 'senderName', 'senderPhoto', 'senderVipTier',
+        'text', 'type', 'giftName', 'giftCoins', 'recipientName', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'roomId', 'senderId', 'senderName', 'senderPhoto', 'senderVipTier',
+        'text', 'type', 'giftName', 'giftCoins', 'recipientName', 'createdAt'
+      ]) &&
+      data.roomId is string && data.roomId.size() >= 1 && data.roomId.size() <= 128 && data.roomId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.senderId is string && data.senderId.size() >= 1 && data.senderId.size() <= 128 && data.senderId.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.senderName is string && data.senderName.size() >= 1 && data.senderName.size() <= 60 &&
+      data.senderPhoto is string && data.senderPhoto.size() <= 500 &&
+      data.senderVipTier is string && data.senderVipTier in ['member', 'gold', 'royal', 'emperor'] &&
+      data.text is string && data.text.size() >= 1 && data.text.size() <= 400 &&
+      data.type is string && data.type in ['chat', 'gift', 'system'] &&
+      data.giftName is string && data.giftName.size() <= 60 &&
+      data.giftCoins is number && data.giftCoins >= 0 && data.giftCoins <= 1000000 &&
+      data.recipientName is string && data.recipientName.size() <= 60 &&
+      data.createdAt is timestamp;
+    }
+
+    // Validation Blueprint: CoinTransaction
+    function isValidCoinTransaction(data) {
+      return data.keys().hasAll([
+        'uid', 'type', 'amount', 'title', 'referenceId', 'createdAt'
+      ]) &&
+      data.keys().hasOnly([
+        'uid', 'type', 'amount', 'title', 'referenceId', 'createdAt'
+      ]) &&
+      data.uid is string && data.uid.size() >= 1 && data.uid.size() <= 128 && data.uid.matches('^[a-zA-Z0-9_\\-]+$') &&
+      data.type is string && data.type in ['topup', 'gift_sent', 'vip_upgrade', 'daily_reward'] &&
+      data.amount is number && data.amount >= -1000000 && data.amount <= 1000000 &&
+      data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+      data.referenceId is string && data.referenceId.size() <= 128 &&
+      data.createdAt is timestamp;
+    }
+
+    // Collection: /users/{userId} (Public Member Profiles & Coin Leaderboard)
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId);
+      allow list: if isSignedIn() && resource.data.coins >= 0;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(userId) &&
+        userId == request.auth.uid &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time;
+
+      allow update: if isVerifiedUser() &&
+        isValidId(userId) &&
+        isValidUserProfile(incoming()) &&
+        incoming().uid == existing().uid &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Owner updates profile, coins, or VIP status
+          (userId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'displayName', 'photoURL', 'bio', 'coins',
+              'totalCoinsSpent', 'totalGiftsReceived', 'vipTier',
+              'activeBadge', 'updatedAt'
+            ])
+          ) ||
+          // Action 2: Another verified member sends a gift incrementing recipient's totalGiftsReceived
+          (userId != request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly(['totalGiftsReceived', 'updatedAt']) &&
+            incoming().totalGiftsReceived > existing().totalGiftsReceived
+          )
+        );
+
+      allow delete: if false;
+    }
+
+    // Collection: /rooms/{roomId} (Voice Rooms Directory)
+    match /rooms/{roomId} {
+      allow get: if isSignedIn() && isValidId(roomId);
+      allow list: if isSignedIn() && resource.data.status in ['active', 'closed'];
+
+      allow create: if isVerifiedUser() &&
+        isValidId(roomId) &&
+        isValidVoiceRoom(incoming()) &&
+        incoming().roomId == roomId &&
+        incoming().hostId == request.auth.uid &&
+        incoming().status == 'active' &&
+        incoming().createdAt == request.time &&
+        incoming().updatedAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update: if isVerifiedUser() &&
+        isValidId(roomId) &&
+        isValidVoiceRoom(incoming()) &&
+        existing().status != 'closed' &&
+        incoming().roomId == existing().roomId &&
+        incoming().hostId == existing().hostId &&
+        incoming().createdAt == existing().createdAt &&
+        incoming().updatedAt == request.time && (
+          // Action 1: Host updates room details or closes room
+          (existing().hostId == request.auth.uid &&
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'title', 'topic', 'category', 'status',
+              'speakerCount', 'totalCoinsSupport', 'updatedAt'
+            ])
+          ) ||
+          // Action 2: Participant updates speakerCount or totalCoinsSupport (gifts)
+          (incoming().diff(existing()).affectedKeys().hasOnly([
+              'speakerCount', 'totalCoinsSupport', 'updatedAt'
+            ])
+          )
+        );
+
+      allow delete: if false;
+
+      // Subcollection: /rooms/{roomId}/seats/{seatId}
+      match /seats/{seatId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(seatId);
+        allow list: if isSignedIn() && resource.data.roomId == roomId;
+
+        allow create: if isVerifiedUser() &&
+          isValidId(roomId) &&
+          isValidId(seatId) &&
+          isValidRoomSeat(incoming()) &&
+          incoming().roomId == roomId &&
+          incoming().uid == request.auth.uid &&
+          incoming().joinedAt == request.time &&
+          incoming().updatedAt == request.time &&
+          get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'active';
+
+        allow update: if isVerifiedUser() &&
+          isValidId(roomId) &&
+          isValidId(seatId) &&
+          isValidRoomSeat(incoming()) &&
+          incoming().roomId == existing().roomId &&
+          incoming().uid == existing().uid &&
+          incoming().seatIndex == existing().seatIndex &&
+          incoming().joinedAt == existing().joinedAt &&
+          incoming().updatedAt == request.time &&
+          get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'active' && (
+            // Action 1: Seat occupant toggles mute/speaking or updates tier
+            (existing().uid == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly([
+                'isMuted', 'isSpeaking', 'vipTier', 'displayName', 'photoURL', 'updatedAt'
+              ])
+            ) ||
+            // Action 2: Room host mutes speaker
+            (get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
+              incoming().diff(existing()).affectedKeys().hasOnly(['isMuted', 'isSpeaking', 'updatedAt'])
+            )
+          );
+
+        allow delete: if isVerifiedUser() &&
+          isValidId(roomId) &&
+          isValidId(seatId) && (
+            existing().uid == request.auth.uid ||
+            get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid
+          );
+      }
+
+      // Subcollection: /rooms/{roomId}/messages/{messageId}
+      match /messages/{messageId} {
+        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId);
+        allow list: if isSignedIn() && resource.data.roomId == roomId;
+
+        allow create: if isVerifiedUser() &&
+          isValidId(roomId) &&
+          isValidId(messageId) &&
+          isValidRoomMessage(incoming()) &&
+          incoming().roomId == roomId &&
+          incoming().senderId == request.auth.uid &&
+          incoming().createdAt == request.time &&
+          get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'active';
+
+        allow update, delete: if false;
+      }
+    }
+
+    // Collection: /transactions/{txId}
+    match /transactions/{txId} {
+      allow get: if isSignedIn() && isValidId(txId) && existing().uid == request.auth.uid;
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid;
+
+      allow create: if isVerifiedUser() &&
+        isValidId(txId) &&
+        isValidCoinTransaction(incoming()) &&
+        incoming().uid == request.auth.uid &&
+        incoming().createdAt == request.time &&
+        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+
+      allow update, delete: if false;
+    }
+  }
+}

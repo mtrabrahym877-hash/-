@@ -1,0 +1,6 @@
+{
+  "name": "مجلسنا — Majlisna",
+  "description": "منصة المجالس الصوتية التفاعلية والدردشة المباشرة ومتجر الكوينز والهدايا",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
