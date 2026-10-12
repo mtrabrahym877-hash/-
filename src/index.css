@@ -43,3 +43,40 @@
   background: #334155;
 }
 
+/* Coin Counter Floating & Glow Animations */
+@keyframes coinFloatUp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 8px) scale(0.75);
+  }
+  20% {
+    opacity: 1;
+    transform: translate(-50%, -4px) scale(1.15);
+  }
+  70% {
+    opacity: 1;
+    transform: translate(-50%, -18px) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -28px) scale(0.9);
+  }
+}
+
+@keyframes coinGlowPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 3px rgba(255, 215, 0, 0.4));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.95)) drop-shadow(0 0 16px rgba(255, 180, 0, 0.6));
+  }
+}
+
+.animate-coin-float {
+  animation: coinFloatUp 1.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+.animate-coin-glow {
+  animation: coinGlowPulse 0.8s ease-in-out infinite;
+}
+

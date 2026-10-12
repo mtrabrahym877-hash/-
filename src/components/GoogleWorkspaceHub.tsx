@@ -128,6 +128,7 @@ export default function GoogleWorkspaceHub({
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState<boolean>(false);
+  const [authError, setAuthError] = useState<string | null>(null);
 
   // Confirmation modal state (Mandatory for all mutating/destructive operations)
   const [pendingConfirmation, setPendingConfirmation] =
@@ -219,6 +220,7 @@ export default function GoogleWorkspaceHub({
 
   const handleLogin = async () => {
     setIsLoggingIn(true);
+    setAuthError(null);
     setTasksError(null);
     setChatError(null);
     setDriveError(null);
@@ -237,11 +239,111 @@ export default function GoogleWorkspaceHub({
     } catch (err: unknown) {
       const msg =
         err instanceof Error ? err.message : 'تعذر تسجيل الدخول عبر Google';
-      setTasksError(msg);
-      showToast('تعذر إكمال تسجيل الدخول بحساب Google');
+      setAuthError(msg);
+      showToast(msg);
     } finally {
       setIsLoggingIn(false);
     }
+  };
+
+  const handleEnableDemoMode = () => {
+    const mockUser = {
+      uid: 'demo_user_123',
+      displayName: 'مستخدم مجلسنا التجريبي',
+      email: 'guest@majlisna.app',
+      photoURL: '',
+    } as unknown as FirebaseUser;
+    setUser(mockUser);
+    setToken('demo_token');
+    setNeedsAuth(false);
+    setAuthError(null);
+
+    setTaskLists([
+      {
+        id: 'demo_list_1',
+        title: 'مهام إدارة مجلسنا الصوتية',
+      },
+    ]);
+    setSelectedTaskListId('demo_list_1');
+    setTasks([
+      {
+        id: 'task_1',
+        title: 'تجهيز مسابقة القط الجشع الأسبوعية',
+        notes: 'تخصيص مكافآت الكوينز والجوائز الملكية',
+        status: 'needsAction',
+      },
+      {
+        id: 'task_2',
+        title: 'مراجعة طلبات شحن الكوينز وتوثيق المشرفين',
+        notes: 'التحقق من الرتب الذهبية ورتبة الإمبراطور',
+        status: 'completed',
+      },
+    ]);
+    setDriveFiles([
+      {
+        id: 'drive_doc_1',
+        name: 'قواعد_المجالس_الصوتية_مجلسنا.docx',
+        mimeType: 'application/vnd.google-apps.document',
+        modifiedTime: new Date().toISOString(),
+        size: '24576',
+        webViewLink: '#',
+      },
+      {
+        id: 'drive_sheet_1',
+        name: 'سجل_توزيع_جوائز_المجلس_الشهرية.xlsx',
+        mimeType: 'application/vnd.google-apps.spreadsheet',
+        modifiedTime: new Date().toISOString(),
+        size: '104857',
+        webViewLink: '#',
+      },
+      {
+        id: 'drive_txt_1',
+        name: 'أفكار_تطوير_ألعاب_المجلس_2026.txt',
+        mimeType: 'text/plain',
+        modifiedTime: new Date().toISOString(),
+        size: '4096',
+        webViewLink: '#',
+      },
+    ]);
+    setGmailMessages([
+      {
+        id: 'msg_1',
+        threadId: 't_1',
+        snippet: 'مرحباً بك في مجلسنا! تم تفعيل حسابك كعضو مميز في الغرف الصوتية...',
+        from: 'إدارة مجلسنا <noreply@majlisna.app>',
+        subject: 'تهانينا! انضمامك إلى مجالس الصوت التفاعلية',
+        date: 'اليوم، 02:30 م',
+      },
+      {
+        id: 'msg_2',
+        threadId: 't_2',
+        snippet: 'تم إضافة كوينز الجولة بنجاح إلى محفظتك الإلكترونية...',
+        from: 'متجر الكوينز والهدايا <store@majlisna.app>',
+        subject: 'إشعار شحن رصيد الكوينز',
+        date: 'أمس، 10:15 م',
+      },
+    ]);
+    setSpaces([
+      {
+        name: 'spaces/majlisna_vip',
+        displayName: 'غرفة نقاشات مجلس VIP الملكي',
+        type: 'SPACE',
+      },
+      {
+        name: 'spaces/majlisna_moderators',
+        displayName: 'غرفة مشرفي الصوت والمسابقات',
+        type: 'SPACE',
+      },
+    ]);
+    setMessages([
+      {
+        name: 'spaces/majlisna_vip/messages/1',
+        text: 'أهلاً بالجميع في مجلسنا! الفعالية القادمة ستبدأ الساعة 9 مساءً.',
+        sender: { displayName: 'المشرف العام', type: 'HUMAN' },
+        createTime: new Date().toISOString(),
+      },
+    ]);
+    showToast('تم تفعيل وضع المعاينة التجريبي لـ Google Workspace بنجاح!');
   };
 
   const handleLogout = async () => {
@@ -1267,13 +1369,29 @@ export default function GoogleWorkspaceHub({
               </ul>
             </div>
 
-            {/* Official Google Sign-In Material Button */}
-            <div className="pt-1 flex justify-center">
+            {/* Error Message if Login or Network Failed */}
+            {authError && (
+              <div className="bg-rose-950/70 border border-rose-500/50 rounded-2xl p-3 text-right text-xs space-y-1.5 animate-in fade-in">
+                <div className="font-extrabold text-rose-300 flex items-center gap-1.5">
+                  <AlertTriangle size={15} />
+                  <span>تنبيه أثناء الاتصال بـ Google</span>
+                </div>
+                <p className="text-[11px] text-rose-200 leading-relaxed">
+                  {authError}
+                </p>
+                <div className="text-[10px] text-rose-300/80 pt-0.5">
+                  💡 ملاحظة: إذا كان المتصفح يحظر النوافذ المنبثقة أو ملفات تعريف الارتباط لطرف ثالث في إطار العمل (iFrame)، يمكنك استخدام &quot;وضع المعاينة التجريبي&quot; أدناه لاستعراض واجهات وخدمات المجلس كاملة.
+                </div>
+              </div>
+            )}
+
+            {/* Official Google Sign-In Material Button & Demo Preview Button */}
+            <div className="pt-1 flex flex-col sm:flex-row items-center justify-center gap-2.5">
               <button
                 type="button"
                 onClick={handleLogin}
                 disabled={isLoggingIn}
-                className="gsi-material-button bg-white hover:bg-slate-100 text-[#1f1f1f] font-medium rounded-full px-5 py-2.5 flex items-center justify-center gap-3 shadow-lg transition disabled:opacity-60 cursor-pointer border border-slate-300"
+                className="gsi-material-button bg-white hover:bg-slate-100 text-[#1f1f1f] font-medium rounded-full px-5 py-2.5 flex items-center justify-center gap-3 shadow-lg transition disabled:opacity-60 cursor-pointer border border-slate-300 w-full sm:w-auto"
               >
                 <div className="w-5 h-5 shrink-0">
                   <svg
@@ -1304,6 +1422,15 @@ export default function GoogleWorkspaceHub({
                 <span className="text-xs font-extrabold text-slate-900">
                   {isLoggingIn ? 'جاري تسجيل الدخول...' : 'Sign in with Google'}
                 </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={handleEnableDemoMode}
+                className="px-4 py-2.5 rounded-full bg-[#182844] hover:bg-[#1E3358] border border-[#00D1FF]/40 text-[#00D1FF] hover:text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow w-full sm:w-auto"
+              >
+                <span>🚀</span>
+                <span>وضع المعاينة التجريبي (بدون حساب)</span>
               </button>
             </div>
           </div>

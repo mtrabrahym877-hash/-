@@ -70,6 +70,7 @@ import {
 } from './majlisData';
 import { usePWAInstall, SHARED_APP_URL } from './usePWAInstall';
 import GreedyCatGame, { ArcadeGameTabId } from './components/GreedyCatGame';
+import { AnimatedCoinCounter } from './components/AnimatedCoinCounter';
 import GoogleWorkspaceHub, {
   WorkspaceSubTabId,
 } from './components/GoogleWorkspaceHub';
@@ -1157,7 +1158,7 @@ export default function MajlisnaApp() {
                   className="flex items-center gap-1 bg-[#121E33] border border-[#FFD700]/40 px-2.5 py-1.5 rounded-full text-xs font-bold text-[#FFD700] hover:bg-[#192944] transition"
                 >
                   <Coins size={13} className="text-[#FFD700]" />
-                  <span>{coins.toLocaleString('en-US')}</span>
+                  <AnimatedCoinCounter value={coins} />
                   <span className="bg-[#FFD700] text-[#080F1A] rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black">
                     +
                   </span>
@@ -1786,7 +1787,7 @@ export default function MajlisnaApp() {
                   className="flex items-center gap-1 bg-[#121E33] border border-[#FFD700]/40 px-2.5 py-1 rounded-full text-[11px] font-bold text-[#FFD700]"
                 >
                   <Coins size={12} />
-                  <span>{coins.toLocaleString('en-US')}</span>
+                  <AnimatedCoinCounter value={coins} />
                 </button>
                 <button
                   onClick={() => setShowLevelsModal(true)}
@@ -2115,7 +2116,7 @@ export default function MajlisnaApp() {
                 className="flex items-center gap-1.5 bg-[#121E33] border border-[#FFD700]/40 px-3 py-1 rounded-full text-xs font-extrabold text-[#FFD700]"
               >
                 <Coins size={14} />
-                <span>{coins.toLocaleString('en-US')} رصيدي</span>
+                <AnimatedCoinCounter value={coins} suffix={<span className="mr-1">رصيدي</span>} />
                 <span className="bg-[#FFD700] text-[#080F1A] rounded-full w-4 h-4 flex items-center justify-center text-[10px]">
                   +
                 </span>
@@ -3364,7 +3365,7 @@ export default function MajlisnaApp() {
                     className="flex-1 py-1.5 px-3 rounded-full bg-[#13223A] border border-[#FFD700]/40 flex items-center justify-center gap-1.5 text-xs font-extrabold text-[#FFD700]"
                   >
                     <Coins size={13} />
-                    <span>{coins.toLocaleString('en-US')}</span>
+                    <AnimatedCoinCounter value={coins} />
                   </button>
                   <button
                     onClick={() => {
@@ -3479,6 +3480,12 @@ export default function MajlisnaApp() {
                   </strong>
                   )
                 </p>
+                <div className="mt-2 inline-flex items-center gap-2 px-3 py-1 bg-[#122137] border border-[#FFD700]/40 rounded-full text-xs font-bold text-amber-200">
+                  <Coins size={14} className="text-[#FFD700]" />
+                  <span>رصيدك الحالي:</span>
+                  <AnimatedCoinCounter value={coins} className="text-sm font-black text-[#FFD700]" />
+                  <span>كوينز</span>
+                </div>
               </div>
 
               <div className="space-y-2.5 mb-4">
