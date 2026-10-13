@@ -47,6 +47,7 @@ import {
   UserCheck,
   Award,
   Hash,
+  Radio,
 } from 'lucide-react';
 import {
   APP_IMAGES,
@@ -74,6 +75,14 @@ import { AnimatedCoinCounter } from './components/AnimatedCoinCounter';
 import GoogleWorkspaceHub, {
   WorkspaceSubTabId,
 } from './components/GoogleWorkspaceHub';
+import { AgoraVoiceSettingsModal } from './components/AgoraVoiceSettingsModal';
+import {
+  agoraVoiceService,
+  AgoraVoiceStatus,
+} from './services/agoraVoiceService';
+import { firebaseMajlisService } from './services/firebaseMajlisService';
+import { auth, googleWorkspaceSignIn } from './firebase';
+import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
 
 interface RoomChatMessage {
   id: string;
@@ -109,6 +118,13 @@ export default function MajlisnaApp() {
   const [activeHdAnimation, setActiveHdAnimation] =
     useState<ActiveHdGiftAnimation | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Agora Voice & Firebase Real-time State
+  const [showAgoraModal, setShowAgoraModal] = useState(false);
+  const [agoraStatus, setAgoraStatus] =
+    useState<AgoraVoiceStatus>('disconnected');
+  const [speakingSeatIndices, setSpeakingSeatIndices] = useState<number[]>([]);
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
 
   // User Profile, Player ID & Coin Recharge Level Progression State (Lv.1 -> Lv.9)
   const [userName, setUserName] = useState('ابراهيم مطر');
@@ -475,6 +491,174 @@ export default function MajlisnaApp() {
     };
   }, [screen]);
 
+  // Global Firebase Auth & Agora Voice Volume & Firestore Rooms Sync
+  useEffect(() => {
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      setFirebaseUser(u);
+      if (u?.displayName) {
+        setUserName(u.displayName);
+      }
+    });
+
+    const unsubAgoraStatus = agoraVoiceService.onStatusChange((st) => {
+      setAgoraStatus(st);
+    });
+
+    // Real-time Agora volume indicator (lights up green rings around speaking seats)
+    const unsubAgoraVol = agoraVoiceService.onVolumeChange((volumes) => {
+      const activeIdxs: number[] = [];
+      volumes.forEach((v) => {
+        if (v.level > 15) {
+          const mySeatIdx = seats.findIndex(
+            (s) => s.occupied && s.name === userName
+          );
+          if (mySeatIdx >= 0 && !activeIdxs.includes(mySeatIdx)) {
+            activeIdxs.push(mySeatIdx);
+          }
+          if (
+            typeof v.uid === 'number' &&
+            v.uid >= 0 &&
+            v.uid < 8 &&
+            !activeIdxs.includes(v.uid)
+          ) {
+            activeIdxs.push(v.uid);
+          }
+        }
+      });
+      setSpeakingSeatIndices(activeIdxs);
+    });
+
+    return () => {
+      unsubAuth();
+      unsubAgoraStatus();
+      unsubAgoraVol();
+    };
+  }, [userName, seats]);
+
+  // Real-time synchronization of rooms from Firestore (Only when authenticated)
+  useEffect(() => {
+    if (!firebaseUser) return;
+    let unsubRooms: (() => void) | undefined;
+    try {
+      unsubRooms = firebaseMajlisService.subscribeRooms((fsRooms) => {
+        if (fsRooms && fsRooms.length > 0) {
+          setRooms((prev) => {
+            const map = new Map<string, RoomInfo>();
+            prev.forEach((r) => map.set(r.id, r));
+            fsRooms.forEach((fs) => {
+              map.set(fs.roomId, {
+                id: fs.roomId,
+                roomCode:
+                  fs.roomId.replace('room_', '').slice(0, 5) || '88420',
+                title: fs.title,
+                category: 'active',
+                topicCategory:
+                  String(fs.category).includes('شعر')
+                    ? 'poetry'
+                    : String(fs.category).includes('ألعاب')
+                    ? 'games'
+                    : String(fs.category).includes('سوالف')
+                    ? 'entertainment'
+                    : 'discussion',
+                listenersCount: `${fs.speakerCount || 1} متحدث`,
+                activeMicsCount: fs.speakerCount || 1,
+                description: fs.topic || 'مجلس عام',
+                cover: APP_IMAGES.goldMicBanner,
+                badgeIcon: 'crown',
+                hostName: fs.hostName,
+                isFeatured: true,
+              });
+            });
+            return Array.from(map.values());
+          });
+        }
+      });
+    } catch {
+      // safe fallback
+    }
+
+    return () => {
+      if (unsubRooms) unsubRooms();
+    };
+  }, [firebaseUser]);
+
+  // Real-time Room Sync (Agora Voice RTC + Firestore Chat & Seats)
+  useEffect(() => {
+    if (screen !== 'room' || !activeRoom) return;
+
+    // Join Agora Voice Channel (Simulated mode if no App ID)
+    agoraVoiceService.joinRoom(
+      activeRoom.roomCode || activeRoom.id,
+      firebaseUser?.uid || myPlayerId
+    );
+
+    let unsubMsgs: (() => void) | undefined;
+    let unsubSeats: (() => void) | undefined;
+
+    // Only subscribe to Firestore if authenticated
+    if (firebaseUser) {
+      try {
+        unsubMsgs = firebaseMajlisService.subscribeMessages(
+          activeRoom.id,
+          (fsMsgs) => {
+            if (fsMsgs && fsMsgs.length > 0) {
+              setRoomChat(
+                fsMsgs.map((m) => ({
+                  id: m.id || `m_${Date.now()}`,
+                  sender: m.senderName,
+                  senderId: m.senderId,
+                  senderLevel: 10,
+                  avatar: m.senderPhoto || APP_IMAGES.avatarHoodedVip,
+                  text: m.text,
+                  isVip: m.senderVipTier !== 'member',
+                  isGift: m.type === 'gift',
+                }))
+              );
+            }
+          }
+        );
+      } catch {
+        // safe fallback
+      }
+
+      try {
+        unsubSeats = firebaseMajlisService.subscribeSeats(
+          activeRoom.id,
+          (fsSeats) => {
+            if (fsSeats && fsSeats.length > 0) {
+              setSeats((prev) =>
+                prev.map((s, idx) => {
+                  const fsSeat = fsSeats.find((f) => f.seatIndex === idx);
+                  if (fsSeat) {
+                    return {
+                      ...s,
+                      occupied: true,
+                      name: fsSeat.displayName,
+                      playerId: fsSeat.uid,
+                      avatar:
+                        fsSeat.photoURL || s.avatar || APP_IMAGES.avatarHoodedVip,
+                      isMuted: fsSeat.isMuted,
+                      isVip: fsSeat.vipTier !== 'member',
+                    };
+                  }
+                  return s;
+                })
+              );
+            }
+          }
+        );
+      } catch {
+        // safe fallback
+      }
+    }
+
+    return () => {
+      agoraVoiceService.leaveRoom();
+      if (unsubMsgs) unsubMsgs();
+      if (unsubSeats) unsubSeats();
+    };
+  }, [screen, activeRoom.id, firebaseUser, myPlayerId]);
+
   // WhatsApp Topup Action (+967776551633)
   const buyCoinsViaWhatsapp = (pkgCoins: number, price: string) => {
     const text = `مرحباً، أود شراء باقة ${pkgCoins} كوينز بسعر ${price} في تطبيق مجلسنا (حساب: ${userName} - معرف اللاعب ID: ${myPlayerId}).`;
@@ -491,6 +675,7 @@ export default function MajlisnaApp() {
   const openVoiceRoom = (room: RoomInfo) => {
     setActiveRoom(room);
     setScreen('room');
+    agoraVoiceService.joinRoom(room.roomCode || room.id, myPlayerId);
   };
 
   // Click on a microphone seat in the side-by-side grid
@@ -502,11 +687,14 @@ export default function MajlisnaApp() {
       return;
     }
 
-    setSeats((prev) =>
-      prev.map((s) => {
-        if (s.id !== seat.id) return s;
-        if (s.occupied && s.name === userName) {
-          showToast('تم النزول من المايك');
+    const seatIdx = seat.id - 1;
+    if (seat.occupied && seat.name === userName) {
+      showToast('تم النزول من المايك');
+      agoraVoiceService.unpublishMic();
+      firebaseMajlisService.leaveSeat(activeRoom.id, seatIdx).catch(() => {});
+      setSeats((prev) =>
+        prev.map((s) => {
+          if (s.id !== seat.id) return s;
           return {
             ...s,
             occupied: false,
@@ -514,8 +702,27 @@ export default function MajlisnaApp() {
             playerId: '',
             avatar: '',
           };
-        }
-        showToast(`صعدت إلى ${s.roleLabel} 🎙️`);
+        })
+      );
+      return;
+    }
+
+    showToast(`صعدت إلى ${seat.roleLabel} 🎙️ (جاري بث الصوت عبر Agora)`);
+    agoraVoiceService.publishMic();
+    if (firebaseUser) {
+      firebaseMajlisService
+        .takeSeat(activeRoom.id, seatIdx, {
+          uid: firebaseUser.uid,
+          displayName: userName,
+          photoURL: APP_IMAGES.avatarHoodedVip,
+          vipTier: 'royal',
+        })
+        .catch(() => {});
+    }
+
+    setSeats((prev) =>
+      prev.map((s) => {
+        if (s.id !== seat.id) return s;
         return {
           ...s,
           occupied: true,
@@ -529,24 +736,85 @@ export default function MajlisnaApp() {
     );
   };
 
+  // Toggle local microphone in Agora and update UI/Firestore
+  const handleToggleMyMic = () => {
+    const next = !myMicMuted;
+    setMyMicMuted(next);
+    agoraVoiceService.setMuted(next);
+    const mySeatIdx = seats.findIndex((s) => s.occupied && s.name === userName);
+    if (mySeatIdx >= 0) {
+      firebaseMajlisService
+        .toggleSeatMute(activeRoom.id, mySeatIdx, next)
+        .catch(() => {});
+    }
+    showToast(
+      next ? 'تم كتم الميكروفون' : 'الميكروفون مفتوح الآن (بث Agora نشط)'
+    );
+  };
+
+  // Toggle speaker in Agora
+  const handleToggleSpeaker = () => {
+    const next = !speakerMuted;
+    setSpeakerMuted(next);
+    agoraVoiceService.setSpeakerMuted(next);
+    showToast(next ? 'تم كتم السماعة' : 'تم تشغيل السماعة');
+  };
+
+  // Google sign in helper with Firebase user sync
+  const handleGoogleSignIn = async () => {
+    try {
+      const res = await googleWorkspaceSignIn();
+      if (res?.user) {
+        setFirebaseUser(res.user);
+        if (res.user.displayName) {
+          setUserName(res.user.displayName);
+        }
+        firebaseMajlisService
+          .syncUserProfile(res.user.uid, {
+            displayName: res.user.displayName || userName,
+            photoURL: res.user.photoURL || undefined,
+            coins,
+          })
+          .catch(() => {});
+        setScreen('home');
+        showToast(`مرحباً بك ${res.user.displayName || userName} عبر Google!`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      showToast(msg || 'تعذر تسجيل الدخول بـ Google');
+    }
+  };
+
   // Send message inside the Voice Room
   const handleSendRoomMessage = () => {
     const trimmed = roomInput.trim();
     if (!trimmed) return;
-    setRoomChat((prev) => [
-      ...prev,
-      {
-        id: `m_${Date.now()}`,
-        sender: userName,
-        senderId: myPlayerId,
-        senderLevel: userLevel,
-        avatar: APP_IMAGES.avatarHoodedVip,
-        text: trimmed,
-        isVip: true,
-      },
-    ]);
+    const newMsg: RoomChatMessage = {
+      id: `m_${Date.now()}`,
+      sender: userName,
+      senderId: myPlayerId,
+      senderLevel: userLevel,
+      avatar: APP_IMAGES.avatarHoodedVip,
+      text: trimmed,
+      isVip: true,
+    };
+    setRoomChat((prev) => [...prev, newMsg]);
     setRoomInput('');
     addExperience(15);
+
+    // Sync to Firestore real-time room chat if authenticated
+    if (firebaseUser) {
+      firebaseMajlisService
+        .sendMessage(activeRoom.id, {
+          senderId: firebaseUser.uid,
+          senderName: userName,
+          senderPhoto: APP_IMAGES.avatarHoodedVip,
+          senderVipTier: 'royal',
+          text: trimmed,
+          type: 'chat',
+        })
+        .catch(() => {});
+    }
   };
 
   // Trigger HD Animated Gift & Deduct Coins + Add XP
@@ -560,17 +828,36 @@ export default function MajlisnaApp() {
     setCoins((c) => c - gift.coins);
     addExperience(gift.xpBonus);
 
+    const giftMsgText = `أهدى ${gift.icon} ${gift.name} (${gift.coins} كوينز) إلى ${recipient} (+${gift.xpBonus} XP)`;
     const giftMsg: RoomChatMessage = {
       id: `gift_${Date.now()}`,
       sender: userName,
       senderId: myPlayerId,
       senderLevel: userLevel,
       avatar: APP_IMAGES.avatarHoodedVip,
-      text: `أهدى ${gift.icon} ${gift.name} (${gift.coins} كوينز) إلى ${recipient} (+${gift.xpBonus} XP)`,
+      text: giftMsgText,
       isVip: true,
       isGift: true,
     };
     setRoomChat((prev) => [...prev, giftMsg]);
+
+    // Sync gift broadcast to Firestore if authenticated
+    if (firebaseUser) {
+      firebaseMajlisService
+        .sendMessage(activeRoom.id, {
+          senderId: firebaseUser.uid,
+          senderName: userName,
+          senderPhoto: APP_IMAGES.avatarHoodedVip,
+          senderVipTier: 'royal',
+          text: giftMsgText,
+          type: 'gift',
+          giftName: gift.name,
+          giftCoins: gift.coins,
+          recipientName: recipient,
+        })
+        .catch(() => {});
+    }
+
     setNotifications((prev) => [
       {
         id: `n_${Date.now()}`,
@@ -625,6 +912,21 @@ export default function MajlisnaApp() {
       isFeatured: true,
     };
     setRooms((prev) => [created, ...prev]);
+
+    // Persist new voice room to Firestore if authenticated
+    if (firebaseUser) {
+      firebaseMajlisService
+        .createVoiceRoom({
+          roomId: created.id,
+          title: created.title,
+          topic: created.description,
+          category: 'عام',
+          hostId: firebaseUser.uid,
+          hostName: userName,
+        })
+        .catch(() => {});
+    }
+
     setNewRoomName('');
     setNewRoomDesc('');
     setSelectedRoomCategory('all');
@@ -972,7 +1274,9 @@ export default function MajlisnaApp() {
                   
                 </button>
                 <button
-                  onClick={() => setScreen('home')}
+                  type="button"
+                  onClick={handleGoogleSignIn}
+                  title="تسجيل الدخول عبر Google ومزامنة حساب Firebase"
                   className="w-11 h-11 rounded-full bg-white flex items-center justify-center text-slate-900 font-extrabold text-base shadow-lg hover:scale-105 transition"
                 >
                   G
@@ -1771,6 +2075,20 @@ export default function MajlisnaApp() {
 
               <div className="flex items-center gap-1.5">
                 <button
+                  onClick={() => setShowAgoraModal(true)}
+                  className={`px-2 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 border transition ${
+                    agoraStatus === 'connected'
+                      ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                      : agoraStatus === 'simulated'
+                      ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                      : 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                  }`}
+                  title="إعدادات البث الصوتي المباشر Agora SDK"
+                >
+                  <Radio size={11} className={agoraStatus === 'connected' ? 'animate-pulse' : ''} />
+                  <span>بث Agora</span>
+                </button>
+                <button
                   onClick={() => setShowAnimatedBgModal(true)}
                   className={`px-2 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 border transition ${
                     canUseAnimatedBg
@@ -1821,6 +2139,8 @@ export default function MajlisnaApp() {
                 {seats.map((seat) => {
                   const isFriend =
                     seat.occupied && friendIds.includes(seat.playerId);
+                  const isSpeakingNow =
+                    seat.occupied && speakingSeatIndices.includes(seat.id - 1);
                   return (
                     <div
                       key={seat.id}
@@ -1844,11 +2164,23 @@ export default function MajlisnaApp() {
                         </span>
                       )}
 
+                      {/* Speaking Soundwave Badge Top Left */}
+                      {isSpeakingNow && (
+                        <span
+                          className="absolute top-1.5 left-1.5 text-[9px] animate-bounce"
+                          title="يتحدث الآن في بث Agora"
+                        >
+                          🔊
+                        </span>
+                      )}
+
                       {/* Side-by-Side Avatar / Empty Mic Slot */}
                       <div
                         className={`relative w-13 h-13 rounded-full p-0.5 mt-1 transition ${
                           seat.occupied
-                            ? seat.id === 1
+                            ? isSpeakingNow
+                              ? 'bg-gradient-to-tr from-emerald-400 via-[#00D1FF] to-[#FFD700] ring-4 ring-emerald-400 shadow-[0_0_20px_rgba(52,211,153,0.7)] animate-pulse'
+                              : seat.id === 1
                               ? 'bg-gradient-to-tr from-[#FFD700] via-[#F59E0B] to-[#00D1FF] shadow-[0_0_15px_rgba(255,215,0,0.4)]'
                               : 'bg-gradient-to-tr from-[#00D1FF] to-[#6C63FF] shadow-[0_0_12px_rgba(0,209,255,0.25)]'
                             : 'border-2 border-dashed border-slate-600 bg-[#080F1A]/70 flex items-center justify-center'
@@ -1869,7 +2201,13 @@ export default function MajlisnaApp() {
                         )}
 
                         {seat.occupied && (
-                          <span className="absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full bg-emerald-500 border border-[#080F1A] flex items-center justify-center text-[#080F1A]">
+                          <span
+                            className={`absolute -bottom-0.5 -left-0.5 w-4 h-4 rounded-full border border-[#080F1A] flex items-center justify-center text-[#080F1A] ${
+                              isSpeakingNow
+                                ? 'bg-emerald-400 animate-ping'
+                                : 'bg-emerald-500'
+                            }`}
+                          >
                             <Mic size={9} />
                           </span>
                         )}
@@ -1983,12 +2321,7 @@ export default function MajlisnaApp() {
 
               <div className="grid grid-cols-5 gap-1.5 pt-0.5">
                 <button
-                  onClick={() => {
-                    setMyMicMuted(!myMicMuted);
-                    showToast(
-                      !myMicMuted ? 'تم كتم الميكروفون' : 'الميكروفون مفتوح الآن'
-                    );
-                  }}
+                  onClick={handleToggleMyMic}
                   className="flex flex-col items-center justify-center py-1 text-slate-300 hover:text-[#00D1FF]"
                 >
                   <div
@@ -2004,12 +2337,7 @@ export default function MajlisnaApp() {
                 </button>
 
                 <button
-                  onClick={() => {
-                    setSpeakerMuted(!speakerMuted);
-                    showToast(
-                      !speakerMuted ? 'تم كتم السماعة' : 'تم تشغيل السماعة'
-                    );
-                  }}
+                  onClick={handleToggleSpeaker}
                   className="flex flex-col items-center justify-center py-1 text-slate-300 hover:text-[#00D1FF]"
                 >
                   <div
@@ -3673,6 +4001,18 @@ export default function MajlisnaApp() {
             </div>
           </div>
         )}
+
+        {/* Agora Voice Settings Modal */}
+        <AgoraVoiceSettingsModal
+          isOpen={showAgoraModal}
+          onClose={() => setShowAgoraModal(false)}
+          roomCode={activeRoom.roomCode}
+          roomTitle={activeRoom.title}
+          myMicMuted={myMicMuted}
+          speakerMuted={speakerMuted}
+          onToggleMic={handleToggleMyMic}
+          onToggleSpeaker={handleToggleSpeaker}
+        />
       </div>
     </div>
   );
