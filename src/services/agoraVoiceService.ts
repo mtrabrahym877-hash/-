@@ -105,8 +105,9 @@ class AgoraVoiceService {
     // Leave any previous channel
     await this.leaveRoom();
 
-    // If no custom App ID has been entered yet, start simulated live voice mode cleanly
-    if (!appId || appId === 'e0f7601fafe8477cb3664d6db21375d2') {
+    // If no valid 32-character hexadecimal Agora App ID has been provided, run simulated live voice mode cleanly
+    const isValidAppId = /^[0-9a-fA-F]{32}$/.test(appId);
+    if (!isValidAppId) {
       this.currentChannel = channelName;
       this.startSimulationMode();
       this.setStatus(

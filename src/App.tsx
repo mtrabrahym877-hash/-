@@ -691,7 +691,9 @@ export default function MajlisnaApp() {
     if (seat.occupied && seat.name === userName) {
       showToast('تم النزول من المايك');
       agoraVoiceService.unpublishMic();
-      firebaseMajlisService.leaveSeat(activeRoom.id, seatIdx).catch(() => {});
+      if (firebaseUser) {
+        firebaseMajlisService.leaveSeat(activeRoom.id, seatIdx).catch(() => {});
+      }
       setSeats((prev) =>
         prev.map((s) => {
           if (s.id !== seat.id) return s;
@@ -742,7 +744,7 @@ export default function MajlisnaApp() {
     setMyMicMuted(next);
     agoraVoiceService.setMuted(next);
     const mySeatIdx = seats.findIndex((s) => s.occupied && s.name === userName);
-    if (mySeatIdx >= 0) {
+    if (mySeatIdx >= 0 && firebaseUser) {
       firebaseMajlisService
         .toggleSeatMute(activeRoom.id, mySeatIdx, next)
         .catch(() => {});

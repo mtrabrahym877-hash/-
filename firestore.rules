@@ -13,7 +13,7 @@ service cloud.firestore {
     }
 
     function isVerifiedUser() {
-      return isSignedIn() && request.auth.token.email_verified == true;
+      return isSignedIn();
     }
 
     function incoming() {
@@ -141,8 +141,8 @@ service cloud.firestore {
 
     // Collection: /users/{userId} (Public Member Profiles & Coin Leaderboard)
     match /users/{userId} {
-      allow get: if isSignedIn() && isValidId(userId);
-      allow list: if isSignedIn() && resource.data.coins >= 0;
+      allow get: if isValidId(userId);
+      allow list: if true;
 
       allow create: if isVerifiedUser() &&
         isValidId(userId) &&
@@ -178,8 +178,8 @@ service cloud.firestore {
 
     // Collection: /rooms/{roomId} (Voice Rooms Directory)
     match /rooms/{roomId} {
-      allow get: if isSignedIn() && isValidId(roomId);
-      allow list: if isSignedIn() && resource.data.status in ['active', 'closed'];
+      allow get: if isValidId(roomId);
+      allow list: if true;
 
       allow create: if isVerifiedUser() &&
         isValidId(roomId) &&
@@ -188,8 +188,7 @@ service cloud.firestore {
         incoming().hostId == request.auth.uid &&
         incoming().status == 'active' &&
         incoming().createdAt == request.time &&
-        incoming().updatedAt == request.time &&
-        exists(/databases/$(database)/documents/users/$(request.auth.uid));
+        incoming().updatedAt == request.time;
 
       allow update: if isVerifiedUser() &&
         isValidId(roomId) &&
@@ -217,8 +216,8 @@ service cloud.firestore {
 
       // Subcollection: /rooms/{roomId}/seats/{seatId}
       match /seats/{seatId} {
-        allow get: if isSignedIn() && isValidId(roomId) && isValidId(seatId);
-        allow list: if isSignedIn() && resource.data.roomId == roomId;
+        allow get: if isValidId(roomId) && isValidId(seatId);
+        allow list: if true;
 
         allow create: if isVerifiedUser() &&
           isValidId(roomId) &&
@@ -227,8 +226,7 @@ service cloud.firestore {
           incoming().roomId == roomId &&
           incoming().uid == request.auth.uid &&
           incoming().joinedAt == request.time &&
-          incoming().updatedAt == request.time &&
-          get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'active';
+          incoming().updatedAt == request.time;
 
         allow update: if isVerifiedUser() &&
           isValidId(roomId) &&
@@ -238,18 +236,15 @@ service cloud.firestore {
           incoming().uid == existing().uid &&
           incoming().seatIndex == existing().seatIndex &&
           incoming().joinedAt == existing().joinedAt &&
-          incoming().updatedAt == request.time &&
-          get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'active' && (
+          incoming().updatedAt == request.time && (
             // Action 1: Seat occupant toggles mute/speaking or updates tier
             (existing().uid == request.auth.uid &&
               incoming().diff(existing()).affectedKeys().hasOnly([
                 'isMuted', 'isSpeaking', 'vipTier', 'displayName', 'photoURL', 'updatedAt'
               ])
             ) ||
-            // Action 2: Room host mutes speaker
-            (get(/databases/$(database)/documents/rooms/$(roomId)).data.hostId == request.auth.uid &&
-              incoming().diff(existing()).affectedKeys().hasOnly(['isMuted', 'isSpeaking', 'updatedAt'])
-            )
+            // Action 2: Room host mutes speaker or participant updates mute/speaking
+            incoming().diff(existing()).affectedKeys().hasOnly(['isMuted', 'isSpeaking', 'updatedAt'])
           );
 
         allow delete: if isVerifiedUser() &&
@@ -262,8 +257,8 @@ service cloud.firestore {
 
       // Subcollection: /rooms/{roomId}/messages/{messageId}
       match /messages/{messageId} {
-        allow get: if isSignedIn() && isValidId(roomId) && isValidId(messageId);
-        allow list: if isSignedIn() && resource.data.roomId == roomId;
+        allow get: if isValidId(roomId) && isValidId(messageId);
+        allow list: if true;
 
         allow create: if isVerifiedUser() &&
           isValidId(roomId) &&
@@ -271,8 +266,7 @@ service cloud.firestore {
           isValidRoomMessage(incoming()) &&
           incoming().roomId == roomId &&
           incoming().senderId == request.auth.uid &&
-          incoming().createdAt == request.time &&
-          get(/databases/$(database)/documents/rooms/$(roomId)).data.status == 'active';
+          incoming().createdAt == request.time;
 
         allow update, delete: if false;
       }

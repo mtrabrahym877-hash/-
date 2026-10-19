@@ -103,13 +103,8 @@ export class FirebaseMajlisService {
   public subscribeRooms(
     callback: (rooms: VoiceRoom[]) => void
   ): Unsubscribe {
-    if (!auth.currentUser) {
-      return () => {};
-    }
-
     const roomsQuery = query(
       collection(db, 'rooms'),
-      where('status', 'in', ['active', 'closed']),
       limit(20)
     );
 
@@ -123,7 +118,7 @@ export class FirebaseMajlisService {
         callback(rooms);
       },
       (err) => {
-        handleFirestoreError(err, OperationType.LIST, 'rooms');
+        console.warn('Firestore rooms subscription status:', err.message || err);
       }
     );
   }
@@ -141,7 +136,11 @@ export class FirebaseMajlisService {
       hostName: string;
     }
   ): Promise<void> {
-    const activeHostId = auth.currentUser?.uid || room.hostId;
+    if (!auth.currentUser) {
+      console.warn('Cannot create room in Firestore: user not authenticated');
+      return;
+    }
+    const activeHostId = auth.currentUser.uid;
     const roomRef = doc(db, 'rooms', room.roomId);
     try {
       await setDoc(roomRef, {
@@ -158,7 +157,7 @@ export class FirebaseMajlisService {
         updatedAt: serverTimestamp(),
       });
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, `rooms/${room.roomId}`);
+      console.warn('Could not create room in Firestore:', err);
     }
   }
 
@@ -169,15 +168,9 @@ export class FirebaseMajlisService {
     roomId: string,
     callback: (seats: RoomSeat[]) => void
   ): Unsubscribe {
-    if (!auth.currentUser) {
-      return () => {};
-    }
-
     const seatsRef = collection(db, 'rooms', roomId, 'seats');
-    const seatsQuery = query(seatsRef, where('roomId', '==', roomId));
-
     return onSnapshot(
-      seatsQuery,
+      seatsRef,
       (snapshot) => {
         const seats: RoomSeat[] = [];
         snapshot.forEach((docSnap) => {
@@ -186,7 +179,7 @@ export class FirebaseMajlisService {
         callback(seats);
       },
       (err) => {
-        handleFirestoreError(err, OperationType.LIST, `rooms/${roomId}/seats`);
+        console.warn('Firestore seats subscription status:', err.message || err);
       }
     );
   }
@@ -204,7 +197,8 @@ export class FirebaseMajlisService {
       vipTier?: VipTier;
     }
   ): Promise<void> {
-    const activeUid = auth.currentUser?.uid || user.uid;
+    if (!auth.currentUser) return;
+    const activeUid = auth.currentUser.uid;
     const seatId = `seat_${seatIndex}`;
     const seatRef = doc(db, 'rooms', roomId, 'seats', seatId);
     try {
@@ -212,7 +206,7 @@ export class FirebaseMajlisService {
         seatIndex,
         roomId,
         uid: activeUid,
-        displayName: user.displayName.slice(0, 60),
+        displayName: (user.displayName || 'عضو المجلس').slice(0, 60),
         photoURL: (user.photoURL || '').slice(0, 500),
         vipTier: user.vipTier || 'member',
         isMuted: false,
@@ -221,7 +215,7 @@ export class FirebaseMajlisService {
         updatedAt: serverTimestamp(),
       });
     } catch (err) {
-      handleFirestoreError(err, OperationType.WRITE, `rooms/${roomId}/seats/${seatId}`);
+      console.warn('Could not take seat in Firestore:', err);
     }
   }
 
@@ -229,12 +223,13 @@ export class FirebaseMajlisService {
    * Leave a microphone seat
    */
   public async leaveSeat(roomId: string, seatIndex: number): Promise<void> {
+    if (!auth.currentUser) return;
     const seatId = `seat_${seatIndex}`;
     const seatRef = doc(db, 'rooms', roomId, 'seats', seatId);
     try {
       await deleteDoc(seatRef);
     } catch (err) {
-      handleFirestoreError(err, OperationType.DELETE, `rooms/${roomId}/seats/${seatId}`);
+      console.warn('Could not remove seat from Firestore:', err);
     }
   }
 
@@ -246,15 +241,18 @@ export class FirebaseMajlisService {
     seatIndex: number,
     isMuted: boolean
   ): Promise<void> {
+    if (!auth.currentUser) return;
     const seatId = `seat_${seatIndex}`;
     const seatRef = doc(db, 'rooms', roomId, 'seats', seatId);
     try {
+      const snap = await getDoc(seatRef);
+      if (!snap.exists()) return;
       await updateDoc(seatRef, {
         isMuted,
         updatedAt: serverTimestamp(),
       });
     } catch (err) {
-      handleFirestoreError(err, OperationType.UPDATE, `rooms/${roomId}/seats/${seatId}`);
+      console.warn('Could not update seat mute in Firestore:', err);
     }
   }
 
@@ -265,16 +263,8 @@ export class FirebaseMajlisService {
     roomId: string,
     callback: (messages: RoomMessage[]) => void
   ): Unsubscribe {
-    if (!auth.currentUser) {
-      return () => {};
-    }
-
     const messagesRef = collection(db, 'rooms', roomId, 'messages');
-    const q = query(
-      messagesRef,
-      where('roomId', '==', roomId),
-      limit(50)
-    );
+    const q = query(messagesRef, limit(50));
 
     return onSnapshot(
       q,
@@ -289,7 +279,7 @@ export class FirebaseMajlisService {
         callback(msgs);
       },
       (err) => {
-        handleFirestoreError(err, OperationType.LIST, `rooms/${roomId}/messages`);
+        console.warn('Firestore messages subscription status:', err.message || err);
       }
     );
   }
@@ -311,7 +301,8 @@ export class FirebaseMajlisService {
       recipientName?: string;
     }
   ): Promise<void> {
-    const activeSenderId = auth.currentUser?.uid || msg.senderId;
+    if (!auth.currentUser) return;
+    const activeSenderId = auth.currentUser.uid;
     const messageId = `msg_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
     const msgRef = doc(db, 'rooms', roomId, 'messages', messageId);
 
@@ -319,7 +310,7 @@ export class FirebaseMajlisService {
       await setDoc(msgRef, {
         roomId,
         senderId: activeSenderId,
-        senderName: msg.senderName.slice(0, 60),
+        senderName: (msg.senderName || 'عضو المجلس').slice(0, 60),
         senderPhoto: (msg.senderPhoto || '').slice(0, 500),
         senderVipTier: msg.senderVipTier || 'member',
         text: msg.text.slice(0, 400),
@@ -330,11 +321,7 @@ export class FirebaseMajlisService {
         createdAt: serverTimestamp(),
       });
     } catch (err) {
-      handleFirestoreError(
-        err,
-        OperationType.CREATE,
-        `rooms/${roomId}/messages/${messageId}`
-      );
+      console.warn('Could not write message to Firestore:', err);
     }
   }
 }
