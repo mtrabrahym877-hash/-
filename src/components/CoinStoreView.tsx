@@ -69,7 +69,7 @@ export const CoinStoreView: React.FC<CoinStoreViewProps> = ({
       <div className="bg-[#131B2E] border border-white/10 rounded-xl p-6 sm:p-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
         <div className="max-w-xl">
           <div className="flex items-center gap-2 text-xs text-slate-400 mb-2">
-            <span>خزينة مجلسنا</span>
+            <span>خزينة توب شات</span>
             <span aria-hidden="true">·</span>
             <span>شحن فوري وموثق</span>
             <span aria-hidden="true">·</span>

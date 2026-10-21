@@ -10,7 +10,10 @@ import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+const config = firebaseConfig as Record<string, unknown>;
+export const db = config.firestoreDatabaseId
+  ? getFirestore(app, config.firestoreDatabaseId as string)
+  : getFirestore(app);
 export const auth = getAuth(app);
 
 export const SCOPES = [
@@ -21,6 +24,16 @@ export const SCOPES = [
   'https://www.googleapis.com/auth/gmail.send',
   'https://www.googleapis.com/auth/chat.spaces.readonly',
   'https://www.googleapis.com/auth/chat.messages',
+  'https://www.googleapis.com/auth/contacts',
+  'https://www.googleapis.com/auth/contacts.other.readonly',
+  'https://www.googleapis.com/auth/contacts.readonly',
+  'https://www.googleapis.com/auth/directory.readonly',
+  'https://www.googleapis.com/auth/user.addresses.read',
+  'https://www.googleapis.com/auth/user.birthday.read',
+  'https://www.googleapis.com/auth/user.emails.read',
+  'https://www.googleapis.com/auth/user.gender.read',
+  'https://www.googleapis.com/auth/user.organization.read',
+  'https://www.googleapis.com/auth/user.phonenumbers.read',
 ];
 
 export const googleProvider = new GoogleAuthProvider();

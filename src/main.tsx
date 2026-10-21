@@ -24,7 +24,7 @@ class PreviewErrorBoundary extends React.Component<
           className="min-h-screen bg-[#080F1A] text-white flex flex-col items-center justify-center p-6 text-center"
         >
           <h2 className="text-lg font-bold text-[#FFD700] mb-2">
-            جاري إعادة تنشيط شاشة مجلسنا
+            جاري إعادة تنشيط شاشة توب شات
           </h2>
           <p className="text-xs text-slate-300 mb-4">{this.state.message}</p>
           <button

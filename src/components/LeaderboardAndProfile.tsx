@@ -20,7 +20,7 @@ export const LeaderboardView: React.FC<{ topUsers: UserProfile[] }> = ({
           <span>تحديث مباشر</span>
         </div>
         <h1 className="text-3xl font-bold font-display text-white">
-          كبار داعمي ووجهاء مجلسنا
+          كبار داعمي ووجهاء توب شات
         </h1>
         <p className="text-sm text-slate-300 mt-2 max-w-2xl">
           قائمة الشرف لأكثر الأعضاء دعماً وإهداءً في الغرف الصوتية وأصحاب المراتب

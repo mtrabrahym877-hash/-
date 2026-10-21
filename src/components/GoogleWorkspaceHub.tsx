@@ -28,8 +28,18 @@ import {
   workspaceLogout,
 } from '../firebase';
 import firebaseConfig from '../../firebase-applet-config.json';
+import {
+  googleContactsService,
+  GoogleContact,
+} from '../services/googleContactsService';
 
-export type WorkspaceSubTabId = 'tasks' | 'chat' | 'drive' | 'gmail' | 'keep';
+export type WorkspaceSubTabId =
+  | 'tasks'
+  | 'chat'
+  | 'drive'
+  | 'gmail'
+  | 'keep'
+  | 'contacts';
 
 interface GoogleTaskList {
   id: string;
@@ -186,8 +196,40 @@ export default function GoogleWorkspaceHub({
   const [newKeepText, setNewKeepText] = useState<string>('');
   const [showCreateKeepForm, setShowCreateKeepForm] = useState<boolean>(false);
 
+  // 6) Google Contacts State (Google People API)
+  const [contacts, setContacts] = useState<GoogleContact[]>([]);
+  const [contactsLoading, setContactsLoading] = useState<boolean>(false);
+  const [contactsError, setContactsError] = useState<string | null>(null);
+  const [contactsSearchQuery, setContactsSearchQuery] = useState<string>('');
+  const [showCreateContactForm, setShowCreateContactForm] =
+    useState<boolean>(false);
+  const [newGivenName, setNewGivenName] = useState<string>('');
+  const [newFamilyName, setNewFamilyName] = useState<string>('');
+  const [newContactPhone, setNewContactPhone] = useState<string>('');
+  const [newContactEmail, setNewContactEmail] = useState<string>('');
+
   const projectId = firebaseConfig.projectId || 'gen-lang-client-0705277192';
   const chatConsoleConfigUrl = `https://console.cloud.google.com/apis/api/chat.googleapis.com/hangouts-chat?project=${projectId}`;
+
+  const fetchContacts = async (activeTokenOverride?: string) => {
+    const activeToken = activeTokenOverride || token;
+    if (!activeToken) {
+      setNeedsAuth(true);
+      return;
+    }
+    setContactsLoading(true);
+    setContactsError(null);
+    try {
+      const data = await googleContactsService.listContacts(100);
+      setContacts(data);
+    } catch (err: unknown) {
+      setContactsError(
+        err instanceof Error ? err.message : 'فشل تحميل جهات الاتصال'
+      );
+    } finally {
+      setContactsLoading(false);
+    }
+  };
 
   useEffect(() => {
     setActiveTab(initialSubTab);
@@ -215,6 +257,7 @@ export default function GoogleWorkspaceHub({
       else if (activeTab === 'drive') fetchDriveFiles(token);
       else if (activeTab === 'gmail') fetchGmailMessages(token);
       else if (activeTab === 'keep') fetchKeepNotes(token);
+      else if (activeTab === 'contacts') fetchContacts(token);
     }
   }, [needsAuth, token, activeTab]);
 
@@ -1219,14 +1262,73 @@ export default function GoogleWorkspaceHub({
       else if (activeTab === 'drive') setDriveError(msg);
       else if (activeTab === 'gmail') setGmailError(msg);
       else if (activeTab === 'keep') setKeepError(msg);
+      else if (activeTab === 'contacts') setContactsError(msg);
       setPendingConfirmation(null);
     } finally {
       setIsExecutingConfirm(false);
     }
   };
 
+  const promptCreateContact = () => {
+    if (!newGivenName.trim()) {
+      showToast('يرجى كتابة الاسم الأول لجهة الاتصال');
+      return;
+    }
+    const fullName = `${newGivenName} ${newFamilyName}`.trim();
+    setPendingConfirmation({
+      title: 'تأكيد إضافة جهة اتصال إلى Google Contacts',
+      description: `هل توافق على إضافة "${fullName}" إلى حساب Google Contacts الخاص بك؟`,
+      confirmLabel: 'نعم، أضف جهة الاتصال',
+      isDanger: false,
+      onConfirm: async () => {
+        try {
+          const created = await googleContactsService.createContact({
+            givenName: newGivenName.trim(),
+            familyName: newFamilyName.trim(),
+            phoneNumber: newContactPhone.trim(),
+            email: newContactEmail.trim(),
+          });
+          setContacts((prev) => [created, ...prev]);
+          setShowCreateContactForm(false);
+          setNewGivenName('');
+          setNewFamilyName('');
+          setNewContactPhone('');
+          setNewContactEmail('');
+          showToast(`تمت إضافة "${created.displayName}" إلى Google Contacts بنجاح!`);
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : 'فشلت الإضافة');
+        }
+      },
+    });
+  };
+
+  const promptDeleteContact = (contact: GoogleContact) => {
+    setPendingConfirmation({
+      title: 'تأكيد حذف جهة الاتصال',
+      description: `هل أنت متأكد من حذف "${contact.displayName}" نهائياً من حساب Google Contacts؟ لا يمكن التراجع.`,
+      confirmLabel: 'نعم، احذف جهة الاتصال',
+      isDanger: true,
+      onConfirm: async () => {
+        try {
+          await googleContactsService.deleteContact(contact.resourceName);
+          setContacts((prev) =>
+            prev.filter((c) => c.resourceName !== contact.resourceName)
+          );
+          showToast(`تم حذف "${contact.displayName}" من جهات الاتصال`);
+        } catch (err) {
+          showToast(err instanceof Error ? err.message : 'فشل الحذف');
+        }
+      },
+    });
+  };
+
   const isAnyLoading =
-    tasksLoading || chatLoading || driveLoading || gmailLoading || keepLoading;
+    tasksLoading ||
+    chatLoading ||
+    driveLoading ||
+    gmailLoading ||
+    keepLoading ||
+    contactsLoading;
 
   return (
     <div className="flex-1 flex flex-col bg-[#080F1A] text-white overflow-y-auto pb-20">
@@ -1248,7 +1350,7 @@ export default function GoogleWorkspaceHub({
               </h2>
             </div>
             <p className="text-[10px] text-slate-400">
-              Drive · Gmail · Keep · Tasks · Chat
+              Drive · Gmail · Keep · Tasks · Chat · Contacts
             </p>
           </div>
         </div>
@@ -1264,9 +1366,9 @@ export default function GoogleWorkspaceHub({
         )}
       </div>
 
-      {/* 5-Service Switcher Tabs: Drive | Gmail | Keep | Tasks | Chat */}
+      {/* 6-Service Switcher Tabs: Drive | Gmail | Keep | Tasks | Chat | Contacts */}
       <div className="px-3.5 pt-3">
-        <div className="grid grid-cols-5 gap-1.5 p-1 rounded-2xl bg-[#0F1B30] border border-white/10">
+        <div className="grid grid-cols-6 gap-1 p-1 rounded-2xl bg-[#0F1B30] border border-white/10">
           {[
             { id: 'drive' as WorkspaceSubTabId, label: 'Drive', icon: Folder },
             { id: 'gmail' as WorkspaceSubTabId, label: 'Gmail', icon: Mail },
@@ -1284,6 +1386,11 @@ export default function GoogleWorkspaceHub({
               id: 'chat' as WorkspaceSubTabId,
               label: 'Chat',
               icon: MessageSquare,
+            },
+            {
+              id: 'contacts' as WorkspaceSubTabId,
+              label: 'جهات الاتصال',
+              icon: Users,
             },
           ].map((tab) => {
             const IconComp = tab.icon;
@@ -2248,6 +2355,211 @@ export default function GoogleWorkspaceHub({
                     </form>
                   </div>
                 )}
+              </div>
+            )}
+
+            {/* ==============================================================
+                TAB: GOOGLE CONTACTS VIEW (Google People API)
+               ============================================================== */}
+            {activeTab === 'contacts' && (
+              <div className="space-y-3.5">
+                {/* Search Bar + Add Button */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type="text"
+                      value={contactsSearchQuery}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setContactsSearchQuery(val);
+                        if (!val.trim()) {
+                          fetchContacts();
+                        } else {
+                          googleContactsService
+                            .searchContacts(val)
+                            .then(setContacts)
+                            .catch(() => {});
+                        }
+                      }}
+                      placeholder="ابحث في جهات اتصال Google..."
+                      className="w-full bg-[#101C30] border border-white/10 rounded-2xl pr-9 pl-3 py-2 text-xs text-white focus:outline-none focus:border-[#FFD700]"
+                    />
+                    <Search
+                      size={15}
+                      className="absolute right-3 top-2.5 text-slate-400"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => setShowCreateContactForm((v) => !v)}
+                    className="px-3 py-2 rounded-2xl bg-gradient-to-r from-emerald-500/20 to-teal-500/20 border border-emerald-500/40 text-emerald-400 text-xs font-bold flex items-center gap-1.5 shrink-0 hover:bg-emerald-500/30 transition"
+                  >
+                    <Plus size={14} />
+                    <span>
+                      {showCreateContactForm ? 'إلغاء' : 'إضافة جهة اتصال'}
+                    </span>
+                  </button>
+
+                  <button
+                    onClick={() => fetchContacts()}
+                    disabled={contactsLoading}
+                    className="p-2 rounded-2xl bg-[#101C30] border border-white/10 text-slate-300 hover:text-white transition shrink-0"
+                    title="تحديث"
+                  >
+                    <RefreshCw
+                      size={15}
+                      className={contactsLoading ? 'animate-spin' : ''}
+                    />
+                  </button>
+                </div>
+
+                {contactsError && (
+                  <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-3 text-xs text-rose-300 flex items-center gap-2">
+                    <AlertTriangle size={15} className="shrink-0" />
+                    <span>{contactsError}</span>
+                  </div>
+                )}
+
+                {/* Create Contact Form */}
+                {showCreateContactForm && (
+                  <div className="bg-[#101C30] border border-emerald-500/40 rounded-2xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                        <Users size={14} className="text-emerald-400" />
+                        <span>إضافة جهة اتصال جديدة إلى Google</span>
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        ستُحفظ في حسابك
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        value={newGivenName}
+                        onChange={(e) => setNewGivenName(e.target.value)}
+                        placeholder="الاسم الأول *"
+                        className="bg-[#080F1A] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
+                      />
+                      <input
+                        type="text"
+                        value={newFamilyName}
+                        onChange={(e) => setNewFamilyName(e.target.value)}
+                        placeholder="اسم العائلة"
+                        className="bg-[#080F1A] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="tel"
+                        value={newContactPhone}
+                        onChange={(e) => setNewContactPhone(e.target.value)}
+                        placeholder="رقم الهاتف"
+                        className="bg-[#080F1A] border border-white/10 rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none focus:border-emerald-400"
+                      />
+                      <input
+                        type="email"
+                        value={newContactEmail}
+                        onChange={(e) => setNewContactEmail(e.target.value)}
+                        placeholder="البريد الإلكتروني"
+                        className="bg-[#080F1A] border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none focus:border-emerald-400"
+                      />
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={promptCreateContact}
+                      className="w-full py-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-500 text-white text-xs font-bold hover:brightness-110 transition flex items-center justify-center gap-1.5"
+                    >
+                      <Check size={14} />
+                      <span>حفظ جهة الاتصال في Google</span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Contacts List */}
+                <div className="space-y-2">
+                  {contactsLoading && contacts.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-400 space-y-2">
+                      <RefreshCw
+                        size={24}
+                        className="animate-spin text-[#FFD700] mx-auto"
+                      />
+                      <p>جاري تحميل جهات الاتصال من Google People API...</p>
+                    </div>
+                  ) : contacts.length === 0 ? (
+                    <div className="py-12 text-center text-xs text-slate-400 space-y-1">
+                      <Users size={32} className="text-slate-600 mx-auto" />
+                      <p className="text-slate-300 font-bold">
+                        لا توجد جهات اتصال مطابقة
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        يمكنك إضافة جهة اتصال جديدة باستخدام الزر أعلاه.
+                      </p>
+                    </div>
+                  ) : (
+                    contacts.map((contact) => (
+                      <div
+                        key={contact.resourceName}
+                        className="bg-[#101C30] border border-white/5 hover:border-white/15 rounded-2xl p-3 flex items-center justify-between transition gap-2"
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          {contact.photoUrl ? (
+                            <img
+                              src={contact.photoUrl}
+                              alt={contact.displayName}
+                              className="w-10 h-10 rounded-full object-cover border border-[#FFD700]/30 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-[#FFD700]/20 to-[#F59E0B]/30 border border-[#FFD700]/30 text-[#FFD700] font-extrabold flex items-center justify-center text-sm shrink-0">
+                              {contact.displayName.charAt(0) || 'ص'}
+                            </div>
+                          )}
+
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-xs font-bold text-white truncate">
+                                {contact.displayName}
+                              </span>
+                              {contact.organization && (
+                                <span className="text-[10px] text-slate-400 truncate hidden sm:inline">
+                                  • {contact.organization}
+                                </span>
+                              )}
+                            </div>
+
+                            <div className="flex items-center gap-2 text-[10px] text-slate-400 truncate mt-0.5 font-mono">
+                              {contact.phoneNumber && (
+                                <span className="flex items-center gap-1">
+                                  <span className="text-emerald-400">📞</span>
+                                  <span dir="ltr">{contact.phoneNumber}</span>
+                                </span>
+                              )}
+                              {contact.email && (
+                                <span className="flex items-center gap-1 truncate">
+                                  <span className="text-cyan-400">✉️</span>
+                                  <span className="truncate">
+                                    {contact.email}
+                                  </span>
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => promptDeleteContact(contact)}
+                          className="p-1.5 rounded-xl text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition shrink-0"
+                          title="حذف من جهات الاتصال"
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             )}
           </>

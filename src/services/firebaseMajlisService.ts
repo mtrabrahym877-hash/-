@@ -48,7 +48,7 @@ export class FirebaseMajlisService {
         await updateDoc(userRef, {
           displayName: profileData.displayName.slice(0, 60),
           photoURL: (profileData.photoURL || '').slice(0, 500),
-          bio: (profileData.bio || 'مرحباً بكم في مجلسنا').slice(0, 200),
+          bio: (profileData.bio || 'مرحباً بكم في توب شات').slice(0, 200),
           coins: profileData.coins ?? snap.data()?.coins ?? 12450,
           vipTier: profileData.vipTier || snap.data()?.vipTier || 'member',
           activeBadge: profileData.activeBadge || snap.data()?.activeBadge || 'وجيه المجلس',
@@ -59,7 +59,7 @@ export class FirebaseMajlisService {
           uid,
           displayName: profileData.displayName.slice(0, 60),
           photoURL: (profileData.photoURL || '').slice(0, 500),
-          bio: (profileData.bio || 'مرحباً بكم في مجلسنا').slice(0, 200),
+          bio: (profileData.bio || 'مرحباً بكم في توب شات').slice(0, 200),
           coins: profileData.coins ?? 12450,
           totalCoinsSpent: profileData.totalCoinsSpent ?? 0,
           totalGiftsReceived: profileData.totalGiftsReceived ?? 0,
@@ -69,7 +69,17 @@ export class FirebaseMajlisService {
           updatedAt: serverTimestamp(),
         });
       }
-    } catch (err) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes('the client is offline') ||
+        msg.includes('offline') ||
+        msg.includes('unavailable') ||
+        msg.includes('network')
+      ) {
+        console.warn('Firestore offline notice during syncUserProfile:', msg);
+        return;
+      }
       handleFirestoreError(err, OperationType.WRITE, `users/${uid}`);
     }
   }

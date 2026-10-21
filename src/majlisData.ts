@@ -211,7 +211,7 @@ export const ANIMATED_BACKGROUNDS: AnimatedBackgroundTheme[] = [
   {
     id: 'none',
     name: 'الخلفية الكلاسيكية',
-    subtitle: 'المظهر الملكي الافتراضي لمجلسنا',
+    subtitle: 'المظهر الملكي الافتراضي لتوب شات',
     previewImage: heroLoungeImg,
     overlayGradient: 'from-[#0B1528] via-[#080F1A] to-[#080F1A]',
     accentColor: '#00D1FF',
@@ -314,7 +314,7 @@ export const LEVEL_TIERS: LevelRankTier[] = [
   },
   {
     level: 9,
-    title: 'المستوى 9 — إمبراطور مجلسنا الأسطوري',
+    title: 'المستوى 9 — إمبراطور توب شات الأسطوري',
     requiredRechargedCoins: 1100000,
     badgeColor: 'from-[#FFD700] via-amber-500 to-rose-600',
     perks: 'يُفتح عند شحن 1,100,000 كوينز · تفعيل ميزة الخلفية المتحركة الحصرية في الحساب والغرفة الصوتية!',
@@ -359,7 +359,7 @@ export const INITIAL_ROOMS: RoomInfo[] = [
     topicCategory: 'entertainment',
     listenersCount: '1.5K مستمع',
     activeMicsCount: 6,
-    description: 'سوالف عفوية، طرائف، وتعارف بين أصدقاء مجلسنا',
+    description: 'سوالف عفوية، طرائف، وتعارف بين أصدقاء توب شات',
     cover: heroLoungeImg,
     badgeIcon: 'trophy',
     hostName: 'صقر اليمن',

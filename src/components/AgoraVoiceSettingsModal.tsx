@@ -41,6 +41,7 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
   onToggleSpeaker,
 }) => {
   const [appIdInput, setAppIdInput] = useState('');
+  const [tokenInput, setTokenInput] = useState('');
   const [status, setStatus] = useState<AgoraVoiceStatus>('disconnected');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [testMicLevel, setTestMicLevel] = useState(0);
@@ -49,6 +50,7 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
   useEffect(() => {
     if (isOpen) {
       setAppIdInput(agoraVoiceService.getAppId());
+      setTokenInput(agoraVoiceService.getToken());
       const unsubStatus = agoraVoiceService.onStatusChange((newStatus, err) => {
         setStatus(newStatus);
         setStatusError(err || null);
@@ -70,13 +72,16 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
 
   const handleSaveAppId = () => {
     agoraVoiceService.setAppId(appIdInput);
+    agoraVoiceService.setToken(tokenInput);
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
 
   const handleResetDefault = () => {
     setAppIdInput(DEFAULT_AGORA_APP_ID);
+    setTokenInput('');
     agoraVoiceService.setAppId(DEFAULT_AGORA_APP_ID);
+    agoraVoiceService.setToken('');
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 2500);
   };
@@ -101,6 +106,17 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
             </span>
           </div>
         </div>
+
+        {/* Status Error / Notice Banner if present */}
+        {statusError && (
+          <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 text-xs text-amber-200 flex items-start gap-2.5">
+            <AlertCircle size={18} className="text-amber-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold text-amber-300 block">تنبيه اتصال Agora:</span>
+              <p className="text-[11px] leading-relaxed text-amber-200/90">{statusError}</p>
+            </div>
+          </div>
+        )}
 
         {/* Current Channel & Status Card */}
         <div className="bg-[#14233D] border border-white/10 rounded-2xl p-4 space-y-3">
@@ -194,7 +210,7 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
           </div>
         </div>
 
-        {/* Agora App ID Configuration */}
+        {/* Agora App ID & Token Configuration */}
         <div className="bg-[#14233D] border border-white/10 rounded-2xl p-4 space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
@@ -206,14 +222,32 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
             </span>
           </div>
 
-          <div className="relative">
-            <input
-              type="text"
-              value={appIdInput}
-              onChange={(e) => setAppIdInput(e.target.value)}
-              placeholder="ضع Agora App ID الخاص بك هنا..."
-              className="w-full bg-[#080F1A] border border-white/15 focus:border-[#00D1FF] rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
-            />
+          <div className="space-y-2">
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">
+                Agora App ID (32 حرف سداسي عشري):
+              </label>
+              <input
+                type="text"
+                value={appIdInput}
+                onChange={(e) => setAppIdInput(e.target.value.trim())}
+                placeholder="ضع Agora App ID الخاص بك هنا..."
+                className="w-full bg-[#080F1A] border border-white/15 focus:border-[#00D1FF] rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="text-[10px] text-slate-400 block mb-1">
+                رمز Token المؤقت (اختياري - لمشاريع Secured Mode):
+              </label>
+              <input
+                type="text"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value.trim())}
+                placeholder="اتركه فارغاً إذا كان مشروعك Testing Mode بدون شهادة أمان"
+                className="w-full bg-[#080F1A] border border-white/15 focus:border-[#00D1FF] rounded-xl px-3 py-2 text-xs text-white font-mono focus:outline-none"
+              />
+            </div>
           </div>
 
           <div className="flex items-center justify-between gap-2 pt-1">
@@ -244,7 +278,7 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
           <div className="bg-[#0A1322] border border-cyan-500/20 rounded-xl p-3 text-[11px] text-slate-300 space-y-1.5">
             <div className="flex items-center gap-1 text-[#00D1FF] font-bold">
               <Info size={12} />
-              <span>كيفية تفعيل Agora مجاناً لمشروعك:</span>
+              <span>طريقة تشغيل Agora مجاناً وتفادي خطأ static key:</span>
             </div>
             <p className="text-slate-400 leading-relaxed text-[10px]">
               1. أنشئ حساباً مجانياً على موقع{' '}
@@ -257,8 +291,8 @@ export const AgoraVoiceSettingsModal: React.FC<AgoraVoiceSettingsModalProps> = (
                 console.agora.io
               </a>
               .<br />
-              2. أنشئ مشروعاً جديداً باختيار «Testing Mode: App ID Only».<br />
-              3. انسخ App ID وضعه في الحقل أعلاه لتشغيل الصوت الجماعي الفوري حتى 10,000 دقيقة مجاناً شهرياً.
+              2. أنشئ مشروعاً باختيار «Testing Mode: App ID Only» (بدون App Certificate). إذا كان مشروعك الحالي يظهر خطأ dynamic use static key، عطل خيار Primary Certificate في لوحة Agora أو انسخ Temp Token.<br />
+              3. الصق App ID في الحقل أعلاه لتشغيل الصوت الجماعي الفوري حتى 10,000 دقيقة مجاناً شهرياً.
             </p>
           </div>
         </div>

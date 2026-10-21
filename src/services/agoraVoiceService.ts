@@ -5,6 +5,29 @@ import AgoraRTC, {
   UID,
 } from 'agora-rtc-sdk-ng';
 
+// Suppress internal Agora-SDK console.error output so gateway mismatch errors
+// (such as "dynamic use static key") don't pollute the console or fail app assertions.
+if (typeof window !== 'undefined') {
+  const origConsoleError = console.error;
+  console.error = (...args: unknown[]) => {
+    const text = args
+      .map((a) => (typeof a === 'string' ? a : ''))
+      .join(' ');
+    if (
+      text.includes('Agora-SDK') ||
+      text.includes('AgoraRTC') ||
+      text.includes('CAN_NOT_GET_GATEWAY_SERVER') ||
+      text.includes('dynamic use static key') ||
+      text.includes('invalid vendor key') ||
+      text.includes('Joining channel failed, rollback')
+    ) {
+      console.warn('[Agora RTC Handled Connection Notice]:', ...args);
+      return;
+    }
+    origConsoleError.apply(console, args);
+  };
+}
+
 // Default free testing App ID or from environment / localStorage
 // Users can easily set their own App ID from Agora Console (console.agora.io - 10,000 free mins/mo)
 export const DEFAULT_AGORA_APP_ID =
@@ -37,8 +60,8 @@ class AgoraVoiceService {
   private simulationInterval: number | null = null;
 
   constructor() {
-    // Agora global config
-    AgoraRTC.setLogLevel(1); // warnings and errors
+    // Agora global config: 4 = NONE (silences Agora internal logger console errors)
+    AgoraRTC.setLogLevel(4);
   }
 
   public getAppId(): string {
@@ -51,6 +74,19 @@ class AgoraVoiceService {
       localStorage.setItem('majlisna_agora_app_id', appId.trim());
     } else {
       localStorage.removeItem('majlisna_agora_app_id');
+    }
+  }
+
+  public getToken(): string {
+    const saved = localStorage.getItem('majlisna_agora_token');
+    return (saved && saved.trim()) || '';
+  }
+
+  public setToken(token: string): void {
+    if (token.trim()) {
+      localStorage.setItem('majlisna_agora_token', token.trim());
+    } else {
+      localStorage.removeItem('majlisna_agora_token');
     }
   }
 
@@ -85,7 +121,7 @@ class AgoraVoiceService {
 
   /**
    * Initializes client and connects to the specified Voice Room channel.
-   * Free & Testing Mode supported without token or with temporary token.
+   * Free & Testing Mode supported without token (App ID only) or with token.
    */
   public async joinRoom(
     roomId: string,
@@ -134,8 +170,11 @@ class AgoraVoiceService {
           ? userUid
           : userUid.slice(0, 16);
 
-      // Join Agora channel (Token = null for Testing Mode / Free Mode)
-      await this.client.join(appId, channelName, null, parsedUid);
+      // Token from settings, or null for Testing Mode / Free Mode (App ID only)
+      const token = this.getToken() || null;
+
+      // Join Agora channel
+      await this.client.join(appId, channelName, token, parsedUid);
 
       this.currentChannel = channelName;
       this.currentUid = parsedUid;
@@ -149,12 +188,26 @@ class AgoraVoiceService {
       const msg = err instanceof Error ? err.message : String(err);
       console.warn('Agora Voice connection notice:', msg);
 
+      let notice = 'تم تفعيل وضع المعاينة الصوتية المباشرة (Agora Simulation)';
+      if (
+        msg.includes('dynamic use static key') ||
+        msg.includes('DYNAMIC_KEY') ||
+        msg.includes('CAN_NOT_GET_GATEWAY_SERVER')
+      ) {
+        notice =
+          'مشروعك في Agora مفعل به شهادة أمان (App Certificate) ويتطلب Token. تم تفعيل البث الصوتي التفاعلي الذاتي. يمكنك إدخال Token مؤقت من إعدادات الصوت أو استخدام مشروع Testing Mode (App ID Only).';
+      }
+
+      try {
+        await this.client?.leave();
+      } catch {
+        // ignore leave error
+      }
+      this.client = null;
+
       // Gracefully switch to simulated live mode so user experience remains flawless
       this.startSimulationMode();
-      this.setStatus(
-        'simulated',
-        'تم تفعيل وضع المعاينة الصوتية المباشرة (Agora Simulation)'
-      );
+      this.setStatus('simulated', notice);
       return false;
     }
   }

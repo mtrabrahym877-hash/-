@@ -76,6 +76,7 @@ import GoogleWorkspaceHub, {
   WorkspaceSubTabId,
 } from './components/GoogleWorkspaceHub';
 import { AgoraVoiceSettingsModal } from './components/AgoraVoiceSettingsModal';
+import { GoogleContactsModal } from './components/GoogleContactsModal';
 import {
   agoraVoiceService,
   AgoraVoiceStatus,
@@ -121,6 +122,7 @@ export default function MajlisnaApp() {
 
   // Agora Voice & Firebase Real-time State
   const [showAgoraModal, setShowAgoraModal] = useState(false);
+  const [showContactsModal, setShowContactsModal] = useState(false);
   const [agoraStatus, setAgoraStatus] =
     useState<AgoraVoiceStatus>('disconnected');
   const [speakingSeatIndices, setSpeakingSeatIndices] = useState<number[]>([]);
@@ -174,7 +176,7 @@ export default function MajlisnaApp() {
   const getRankTitle = (lvl: number) => {
     const found = LEVEL_TIERS.find((t) => t.level === lvl);
     if (found) return found.title;
-    if (lvl >= 9) return 'المستوى 9 — إمبراطور مجلسنا الأسطوري';
+    if (lvl >= 9) return 'المستوى 9 — إمبراطور توب شات الأسطوري';
     return 'عضو جديد (اشحن 10,000 للمستوى 1)';
   };
 
@@ -300,7 +302,7 @@ export default function MajlisnaApp() {
     if (newLvl > oldLvl) {
       const unlockedMsg =
         newLvl >= 9
-          ? `👑 مبارك! وصلت إلى المستوى 9 (إمبراطور مجلسنا) وتم فتح ميزة الخلفية المتحركة الحصرية!`
+          ? `👑 مبارك! وصلت إلى المستوى 9 (إمبراطور توب شات) وتم فتح ميزة الخلفية المتحركة الحصرية!`
           : `🎉 مبارك! وصلت إلى المستوى ${newLvl} (${getRankTitle(newLvl)}) بعد شحن ${updatedTotal.toLocaleString('en-US')} كوينز!`;
       showToast(unlockedMsg);
 
@@ -375,13 +377,13 @@ export default function MajlisnaApp() {
             ? {
                 ...c,
                 isFriend: true,
-                lastMessage: 'أضفتك كصديق في مجلسنا 🤝',
+                lastMessage: 'أضفتك كصديق في توب شات 🤝',
                 time: 'الآن',
                 messages: [
                   ...c.messages,
                   {
                     fromMe: true,
-                    text: `أضفتك كصديق في مجلسنا 🤝 (معرفي: ${myPlayerId})`,
+                    text: `أضفتك كصديق في توب شات 🤝 (معرفي: ${myPlayerId})`,
                     time: 'الآن',
                   },
                 ],
@@ -396,14 +398,14 @@ export default function MajlisnaApp() {
         avatar: targetAvatar || APP_IMAGES.avatarHoodedVip,
         level: targetLevel || 10,
         isFriend: true,
-        lastMessage: 'أضفتك كصديق في مجلسنا 🤝',
+        lastMessage: 'أضفتك كصديق في توب شات 🤝',
         time: 'الآن',
         unreadCount: 0,
         isVip: true,
         messages: [
           {
             fromMe: true,
-            text: `مرحباً ${targetName}، أضفتك كصديق في مجلسنا 🤝 (معرفي: ${myPlayerId})`,
+            text: `مرحباً ${targetName}، أضفتك كصديق في توب شات 🤝 (معرفي: ${myPlayerId})`,
             time: 'الآن',
           },
         ],
@@ -661,7 +663,7 @@ export default function MajlisnaApp() {
 
   // WhatsApp Topup Action (+967776551633)
   const buyCoinsViaWhatsapp = (pkgCoins: number, price: string) => {
-    const text = `مرحباً، أود شراء باقة ${pkgCoins} كوينز بسعر ${price} في تطبيق مجلسنا (حساب: ${userName} - معرف اللاعب ID: ${myPlayerId}).`;
+    const text = `مرحباً، أود شراء باقة ${pkgCoins} كوينز بسعر ${price} في تطبيق توب شات (حساب: ${userName} - معرف اللاعب ID: ${myPlayerId}).`;
     const link = document.createElement('a');
     link.href = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(text)}`;
     link.target = '_blank';
@@ -975,7 +977,7 @@ export default function MajlisnaApp() {
       const normalizedId = code.startsWith('MJ-') ? code : `MJ-${code}`;
       handleToggleFriend(
         normalizedId,
-        `صديق مجلسنا (${normalizedId})`,
+        `صديق توب شات (${normalizedId})`,
         APP_IMAGES.avatarHoodedVip,
         8
       );
@@ -1002,7 +1004,7 @@ export default function MajlisnaApp() {
           size === 'lg' ? 'text-4xl mt-1' : 'text-2xl mt-0.5'
         } font-extrabold text-transparent bg-clip-text bg-gradient-to-b from-[#FFE57F] via-[#FFD700] to-[#CA8A04] tracking-wide`}
       >
-        مجلسنا
+        توب شات
       </h1>
       <p className="text-xs text-slate-300/90 mt-1">
         مكان يجمعنا .. و الصوت يوصلنا
@@ -1141,7 +1143,7 @@ export default function MajlisnaApp() {
           <div className="relative flex-1 flex flex-col justify-between items-center p-8 overflow-hidden">
             <img
               src={APP_IMAGES.goldMicBanner}
-              alt="مجلسنا"
+              alt="توب شات"
               referrerPolicy="no-referrer"
               className="absolute inset-0 w-full h-full object-cover opacity-55 scale-105"
             />
@@ -1155,7 +1157,7 @@ export default function MajlisnaApp() {
               <div className="w-44 h-44 rounded-full bg-gradient-to-b from-[#FFD700]/20 to-transparent border border-[#FFD700]/40 p-2 shadow-[0_0_40px_rgba(255,215,0,0.3)] overflow-hidden">
                 <img
                   src={APP_IMAGES.goldMicBanner}
-                  alt="ميكروفون مجلسنا الذهبي"
+                  alt="ميكروفون توب شات الذهبي"
                   referrerPolicy="no-referrer"
                   className="w-full h-full object-cover rounded-full"
                 />
@@ -1245,7 +1247,7 @@ export default function MajlisnaApp() {
                     }
                     setScreen('home');
                     showToast(
-                      `أهلاً بك في مجلسنا يا ${
+                      `أهلاً بك في توب شات يا ${
                         loginIdentifier.trim() || userName
                       }!`
                     );
@@ -1308,7 +1310,7 @@ export default function MajlisnaApp() {
               <div className="text-center mt-4 space-y-1">
                 <h2 className="text-xl font-bold text-white">إنشاء حساب جديد</h2>
                 <p className="text-xs text-slate-400">
-                  انضم إلى مجلسنا وابدأ رحلتك
+                  انضم إلى توب شات وابدأ رحلتك
                 </p>
               </div>
             </div>
@@ -1376,7 +1378,7 @@ export default function MajlisnaApp() {
                     setUserName(regNickname.trim());
                   }
                   setScreen('home');
-                  showToast('تم إنشاء حسابك بنجاح، أهلاً بك في مجلسنا!');
+                  showToast('تم إنشاء حسابك بنجاح، أهلاً بك في توب شات!');
                 }}
                 className="w-full py-3.5 mt-2 rounded-2xl bg-gradient-to-r from-[#F59E0B] via-[#FFD700] to-[#FBBF24] text-[#080F1A] font-extrabold text-sm shadow-[0_6px_20px_rgba(255,215,0,0.3)] hover:brightness-105 transition"
               >
@@ -1424,7 +1426,7 @@ export default function MajlisnaApp() {
                   <div className="flex items-center gap-1.5">
                     <Crown className="text-[#FFD700] fill-[#FFD700]" size={22} />
                     <span className="text-lg font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-[#FFE57F] to-[#FFD700]">
-                      مجلسنا
+                      توب شات
                     </span>
                   </div>
                   <div className="flex items-center gap-1 text-[10px] text-slate-400">
@@ -1446,7 +1448,7 @@ export default function MajlisnaApp() {
                     onClick={async () => {
                       if (isInstallable) {
                         const ok = await install();
-                        if (ok) showToast('تم تثبيت تطبيق مجلسنا بنجاح!');
+                        if (ok) showToast('تم تثبيت تطبيق توب شات بنجاح!');
                       } else {
                         setShowDownloadModal(true);
                       }
@@ -1468,6 +1470,14 @@ export default function MajlisnaApp() {
                   <span className="bg-[#FFD700] text-[#080F1A] rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-black">
                     +
                   </span>
+                </button>
+
+                <button
+                  onClick={() => setShowContactsModal(true)}
+                  className="p-2 rounded-xl bg-[#111C2F] border border-cyan-500/30 text-[#00D1FF] hover:bg-[#17263F] hover:border-[#00D1FF] transition"
+                  title="جهات الاتصال (Google Contacts)"
+                >
+                  <Users size={18} />
                 </button>
 
                 <button
@@ -1506,7 +1516,7 @@ export default function MajlisnaApp() {
               <div className="relative h-36 rounded-2xl overflow-hidden border border-[#FFD700]/30 shadow-lg">
                 <img
                   src={APP_IMAGES.goldMicBanner}
-                  alt="مرحباً بك في مجلسنا"
+                  alt="مرحباً بك في توب شات"
                   referrerPolicy="no-referrer"
                   className="absolute inset-0 w-full h-full object-cover"
                 />
@@ -1514,7 +1524,7 @@ export default function MajlisnaApp() {
                 <div className="relative z-10 h-full p-4 flex flex-col justify-between items-start">
                   <div>
                     <h2 className="text-lg font-extrabold text-white">
-                      مرحباً بك في مجلسنا
+                      مرحباً بك في توب شات
                     </h2>
                     <p className="text-xs text-slate-300 mt-0.5">
                       مكان يجمعنا .. و الصوت يوصلنا
@@ -1553,7 +1563,7 @@ export default function MajlisnaApp() {
                         </span>
                       </h3>
                       <p className="text-[10px] text-slate-300">
-                        Drive · Gmail · Keep · Tasks · Chat مباشرة في مجلسنا
+                        Drive · Gmail · Keep · Tasks · Chat مباشرة في توب شات
                       </p>
                     </div>
                   </div>
@@ -2089,6 +2099,14 @@ export default function MajlisnaApp() {
                 >
                   <Radio size={11} className={agoraStatus === 'connected' ? 'animate-pulse' : ''} />
                   <span>بث Agora</span>
+                </button>
+                <button
+                  onClick={() => setShowContactsModal(true)}
+                  className="px-2 py-1 rounded-full text-[10px] font-extrabold flex items-center gap-1 bg-[#14233D] border border-[#00D1FF]/40 text-[#00D1FF] hover:bg-[#00D1FF]/20 transition"
+                  title="جهات الاتصال (Google Contacts) - دعوة الأصدقاء للمجلس"
+                >
+                  <Users size={11} />
+                  <span>دعوة أصدقاء</span>
                 </button>
                 <button
                   onClick={() => setShowAnimatedBgModal(true)}
@@ -3734,6 +3752,11 @@ export default function MajlisnaApp() {
                       action: () => setScreen('workspace_hub'),
                     },
                     {
+                      label: 'جهات الاتصال (Google Contacts)',
+                      icon: Users,
+                      action: () => setShowContactsModal(true),
+                    },
+                    {
                       label: 'الهدايا المتحركة HD',
                       icon: Gift,
                       action: () => setScreen('gifts'),
@@ -3800,7 +3823,7 @@ export default function MajlisnaApp() {
                   <ShoppingBag size={24} />
                 </div>
                 <h2 className="text-lg font-extrabold text-[#FFD700]">
-                  متجر شحن كوينز وترقية مستويات مجلسنا
+                  متجر شحن كوينز وترقية مستويات توب شات
                 </h2>
                 <p className="text-xs text-slate-300 mt-0.5">
                   معرف اللاعب: <strong className="text-white">{myPlayerId}</strong> · مستواك:{' '}
@@ -3972,7 +3995,7 @@ export default function MajlisnaApp() {
                   <Smartphone size={24} />
                 </div>
                 <h2 className="text-base font-extrabold text-[#FFD700]">
-                  تنزيل وتثبيت تطبيق مجلسنا
+                  تنزيل وتثبيت تطبيق توب شات
                 </h2>
               </div>
 
@@ -3991,7 +4014,7 @@ export default function MajlisnaApp() {
                   <button
                     onClick={() => {
                       navigator.clipboard?.writeText(SHARED_APP_URL);
-                      showToast('تم نسخ رابط تنزيل تطبيق مجلسنا بنجاح!');
+                      showToast('تم نسخ رابط تنزيل تطبيق توب شات بنجاح!');
                     }}
                     className="px-3 py-2 rounded-xl bg-[#FFD700] text-[#080F1A] text-xs font-extrabold flex items-center gap-1 shrink-0"
                   >
@@ -4014,6 +4037,16 @@ export default function MajlisnaApp() {
           speakerMuted={speakerMuted}
           onToggleMic={handleToggleMyMic}
           onToggleSpeaker={handleToggleSpeaker}
+        />
+
+        {/* Google Contacts Modal (Google People API) */}
+        <GoogleContactsModal
+          isOpen={showContactsModal}
+          onClose={() => setShowContactsModal(false)}
+          roomCode={activeRoom?.roomCode}
+          roomTitle={activeRoom?.title}
+          onShowToast={showToast}
+          onRequestGoogleSignIn={handleGoogleSignIn}
         />
       </div>
     </div>
